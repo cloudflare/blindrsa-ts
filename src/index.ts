@@ -3,38 +3,38 @@
 
 // Blind RSA draft 14
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-rsa-blind-signatures-14
-import { BlindRSA, PrepareType } from './blindrsa.js'
+import { BlindRSA, PrepareType } from './blindrsa.js';
 
 export const SUITES = {
     SHA384: {
         PSS: {
             Randomized: () => new BlindRSA('SHA-384', 48, PrepareType.Randomized),
-            Deterministic: () => new BlindRSA('SHA-384', 48, PrepareType.Deterministic)
+            Deterministic: () => new BlindRSA('SHA-384', 48, PrepareType.Deterministic),
         },
         PSSZero: {
             Randomized: () => new BlindRSA('SHA-384', 0, PrepareType.Randomized),
-            Deterministic: () => new BlindRSA('SHA-384', 0, PrepareType.Deterministic)
-        }
-    }
-} as const
+            Deterministic: () => new BlindRSA('SHA-384', 0, PrepareType.Deterministic),
+        },
+    },
+} as const;
 
 export function getSuiteByName(name: string): BlindRSA {
     const lstSuites = [
         SUITES.SHA384.PSS.Randomized,
         SUITES.SHA384.PSSZero.Randomized,
         SUITES.SHA384.PSS.Deterministic,
-        SUITES.SHA384.PSSZero.Deterministic
-    ]
+        SUITES.SHA384.PSSZero.Deterministic,
+    ];
 
-    const nameLowerCaee = name.toLowerCase()
+    const nameLowerCaee = name.toLowerCase();
     for (const suite of lstSuites) {
-        const ss = suite()
+        const ss = suite();
         if (nameLowerCaee === ss.toString().toLowerCase()) {
-            return ss
+            return ss;
         }
     }
 
-    throw new Error('wrong suite name')
+    throw new Error('wrong suite name');
 }
 
-export { BlindRSA }
+export { BlindRSA };
