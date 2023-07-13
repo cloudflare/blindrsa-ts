@@ -3,38 +3,38 @@
 
 // Blind RSA draft 14
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-rsa-blind-signatures-14
-import { RSABSSA, PrepareType } from './blindrsa'
+import { BlindRSA, PrepareType } from './blindrsa.js'
 
 export const SUITES = {
     SHA384: {
         PSS: {
-            Randomized: () => new RSABSSA('SHA-384', 48, PrepareType.Randomized),
-            Deterministic: () => new RSABSSA('SHA-384', 48, PrepareType.Deterministic)
+            Randomized: () => new BlindRSA('SHA-384', 48, PrepareType.Randomized),
+            Deterministic: () => new BlindRSA('SHA-384', 48, PrepareType.Deterministic)
         },
         PSSZero: {
-            Randomized: () => new RSABSSA('SHA-384', 0, PrepareType.Randomized),
-            Deterministic: () => new RSABSSA('SHA-384', 0, PrepareType.Deterministic)
+            Randomized: () => new BlindRSA('SHA-384', 0, PrepareType.Randomized),
+            Deterministic: () => new BlindRSA('SHA-384', 0, PrepareType.Deterministic)
         }
     }
 } as const
 
-export type API = RSABSSA
+export function getSuiteByName(name: string): BlindRSA {
+    const lstSuites = [
+        SUITES.SHA384.PSS.Randomized,
+        SUITES.SHA384.PSSZero.Randomized,
+        SUITES.SHA384.PSS.Deterministic,
+        SUITES.SHA384.PSSZero.Deterministic
+    ]
 
-const SuiteNames: { [_: string]: () => API } = {
-    'RSABSSA-SHA384-PSS-Randomized': SUITES.SHA384.PSS.Randomized,
-    'RSABSSA-SHA384-PSSZERO-Randomized': SUITES.SHA384.PSSZero.Randomized,
-    'RSABSSA-SHA384-PSS-Deterministic': SUITES.SHA384.PSS.Deterministic,
-    'RSABSSA-SHA384-PSSZERO-Deterministic': SUITES.SHA384.PSSZero.Deterministic
-} as const
-
-export function getSuiteByName(name: string): API {
-    for (const suite in SuiteNames) {
-        if (name.toLowerCase() === suite.toLowerCase()) {
-            return SuiteNames[suite as string]()
+    const nameLowerCaee = name.toLowerCase()
+    for (const suite of lstSuites) {
+        const ss = suite()
+        if (nameLowerCaee === ss.toString().toLowerCase()) {
+            return ss
         }
     }
 
     throw new Error('wrong suite name')
 }
 
-export default SUITES
+export { BlindRSA }

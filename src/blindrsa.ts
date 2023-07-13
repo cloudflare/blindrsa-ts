@@ -11,9 +11,9 @@ import {
     rsasp1,
     rsavp1,
     joinAll
-} from './util'
+} from './util.js'
 
-import sjcl from './sjcl'
+import sjcl from './sjcl/index.js'
 
 export enum PrepareType {
     Deterministic = 0,
@@ -22,7 +22,9 @@ export enum PrepareType {
 
 export type BlindOutput = { blindedMsg: Uint8Array; inv: Uint8Array }
 
-export class RSABSSA {
+export class BlindRSA {
+    private static readonly NAME = 'RSA-PSS'
+
     constructor(
         private readonly hash: string,
         private readonly saltLength: number,
@@ -37,6 +39,12 @@ export class RSABSSA {
         }
     }
 
+    toString(): string {
+        return `RSABSSA-${this.hash.replace('-', '')}-PSS${this.saltLength === 0 ? 'ZERO' : ''}-${
+            PrepareType[this.prepareType]
+        }`
+    }
+
     prepare(msg: Uint8Array): Uint8Array {
         const msg_prefix_len = this.prepareType
         const msg_prefix = crypto.getRandomValues(new Uint8Array(msg_prefix_len))
@@ -45,7 +53,7 @@ export class RSABSSA {
 
     // Returns the parameters of the input key: the JSONWebKey data, the length
     // in bits and in bytes of the modulus, and the hash function used.
-    private async extractKey(
+    private async extractKeyParams(
         key: CryptoKey,
         type: 'public' | 'private'
     ): Promise<{
@@ -54,8 +62,8 @@ export class RSABSSA {
         modulusLengthBytes: number
         hash: string
     }> {
-        if (key.type !== type || key.algorithm.name !== 'RSA-PSS') {
-            throw new Error('key is not RSA-PSS')
+        if (key.type !== type || key.algorithm.name !== BlindRSA.NAME) {
+            throw new Error(`key is not ${BlindRSA.NAME}`)
         }
         if (!key.extractable) {
             throw new Error('key is not extractable')
@@ -66,7 +74,7 @@ export class RSABSSA {
         const modulusLengthBytes = Math.ceil(modulusLengthBits / 8)
         const hash = (hashFn as Algorithm).name
         if (hash.toLowerCase() !== this.hash.toLowerCase()) {
-            throw new Error('hash algorithm does not match')
+            throw new Error(`hash is not ${this.hash}`)
         }
         const jwkKey = await crypto.subtle.exportKey('jwk', key)
 
@@ -79,7 +87,7 @@ export class RSABSSA {
             modulusLengthBits: modulusLength,
             modulusLengthBytes: kLen,
             hash
-        } = await this.extractKey(publicKey, 'public')
+        } = await this.extractKeyParams(publicKey, 'public')
         if (!jwkKey.n || !jwkKey.e) {
             throw new Error('key has invalid parameters')
         }
@@ -131,7 +139,10 @@ export class RSABSSA {
     }
 
     async blindSign(privateKey: CryptoKey, blindMsg: Uint8Array): Promise<Uint8Array> {
-        const { jwkKey, modulusLengthBytes: kLen } = await this.extractKey(privateKey, 'private')
+        const { jwkKey, modulusLengthBytes: kLen } = await this.extractKeyParams(
+            privateKey,
+            'private'
+        )
         if (!jwkKey.n || !jwkKey.d) {
             throw new Error('key has invalid parameters')
         }
@@ -166,7 +177,10 @@ export class RSABSSA {
         blindSig: Uint8Array,
         inv: Uint8Array
     ): Promise<Uint8Array> {
-        const { jwkKey, modulusLengthBytes: kLen } = await this.extractKey(publicKey, 'public')
+        const { jwkKey, modulusLengthBytes: kLen } = await this.extractKeyParams(
+            publicKey,
+            'public'
+        )
         if (!jwkKey.n) {
             throw new Error('key has invalid parameters')
         }
@@ -196,11 +210,32 @@ export class RSABSSA {
         // 5. result = RSASSA-PSS-VERIFY(pk, msg, sig)
         // 6. If result = "valid signature", output sig, else
         //    raise "invalid signature" and stop
-        const algorithm = { name: 'RSA-PSS', saltLength: this.saltLength }
+        const algorithm = { name: BlindRSA.NAME, saltLength: this.saltLength }
         if (!(await crypto.subtle.verify(algorithm, publicKey, sig, msg))) {
             throw new Error('invalid signature')
         }
 
         return sig
+    }
+
+    generateKey(
+        algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent'>,
+        extractable: boolean,
+        keyUsages: readonly KeyUsage[]
+    ): Promise<CryptoKeyPair> {
+        return crypto.subtle.generateKey(
+            { ...algorithm, name: BlindRSA.NAME, hash: this.hash },
+            extractable,
+            keyUsages
+        )
+    }
+
+    verify(publicKey: CryptoKey, signature: ArrayBuffer, message: ArrayBuffer): Promise<boolean> {
+        return crypto.subtle.verify(
+            { name: BlindRSA.NAME, saltLength: this.saltLength },
+            publicKey,
+            signature,
+            message
+        )
     }
 }

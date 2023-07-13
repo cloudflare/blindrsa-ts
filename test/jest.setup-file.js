@@ -2,7 +2,7 @@
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
 
-// Mocking crypto with NodeJS webcrypto module only for tests.
+// Mocking crypto with NodeJS WebCrypto module only for tests.
 import { webcrypto } from 'node:crypto'
 
 if (typeof crypto === 'undefined') {
