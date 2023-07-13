@@ -44,7 +44,6 @@ export async function blindRSAExample(suite: BlindRSA) {
     //       <<------------------
     //
     // Client
-    // ====================================================
     // Step 3: The client produces the final signature with
     // the server's blinded signature and the inverse data
     // from the first step.

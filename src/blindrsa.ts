@@ -2,15 +2,15 @@
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
 import {
-    emsa_pss_encode,
-    random_integer_uniform,
     assertNever,
-    is_coprime,
+    emsa_pss_encode,
     i2osp,
+    is_coprime,
+    joinAll,
     os2ip,
+    random_integer_uniform,
     rsasp1,
     rsavp1,
-    joinAll,
 } from './util.js';
 
 import sjcl from './sjcl/index.js';

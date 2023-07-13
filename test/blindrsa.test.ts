@@ -1,9 +1,9 @@
 // Copyright (c) 2023 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import { API, SUITES, getSuiteByName } from '../src/index.js';
+import { SUITES, getSuiteByName } from '../src/index.js';
 import { jest } from '@jest/globals';
-import sjcl from '../src/sjcl';
+import sjcl from '../src/sjcl/index.js';
 import { i2osp } from '../src/util.js';
 
 // Test vectors
@@ -132,8 +132,8 @@ describe.each(vectors)('TestVectors', (v: Vector) => {
             .mockReturnValueOnce(rBytes); // mock for random blind
     });
 
-    test(`$(v.name)`, async () => {
-        const blindRSA: API = getSuiteByName(v.name);
+    test(`${v.name}`, async () => {
+        const blindRSA = getSuiteByName(v.name);
         const msg = hexToUint8(v.msg);
         const inputMsg = blindRSA.prepare(msg);
         expect(uint8ToHex(inputMsg)).toBe(v.input_msg);
@@ -149,5 +149,8 @@ describe.each(vectors)('TestVectors', (v: Vector) => {
 
         const signature = await blindRSA.finalize(publicKey, inputMsg, blindedSig, inv);
         expect(uint8ToHex(signature)).toBe(v.sig);
+
+        const isValid = await blindRSA.verify(publicKey, signature, inputMsg);
+        expect(isValid).toBe(true);
     });
 });
