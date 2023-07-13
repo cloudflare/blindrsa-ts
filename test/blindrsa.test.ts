@@ -28,7 +28,7 @@ function uint8ToHex(x: Uint8Array): string {
     return sjcl.codec.hex.fromBits(sjcl.codec.bytes.toBits(x));
 }
 
-type Vector = typeof vectors[number];
+type Vector = (typeof vectors)[number];
 
 function paramsFromVector(v: Vector): {
     n: string;
