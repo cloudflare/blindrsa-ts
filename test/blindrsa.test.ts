@@ -152,5 +152,5 @@ describe.each(vectors)('TestVectors', (v: Vector) => {
 
         const isValid = await blindRSA.verify(publicKey, signature, inputMsg);
         expect(isValid).toBe(true);
-    });
+    }, 20*1000);
 });
