@@ -1,6 +1,6 @@
 {
     "name": "@cloudflare/blindrsa-ts",
-    "version": "0.1.0",
+    "version": "0.1.1",
     "description": "blindrsa-ts: A TypeScript Library for the Blind RSA Signature Protocol",
     "author": "Armando Faz <armfazh@cloudflare.com>",
     "maintainers": [
@@ -13,8 +13,7 @@
     "module": "./lib/src/index.js",
     "types": "./lib/src/index.d.ts",
     "files": [
-        "lib/src/**/*.!(tsbuildinfo)",
-        "webcrypto.md"
+        "lib/src/**/*.!(tsbuildinfo)"
     ],
     "keywords": [
         "rsa",
