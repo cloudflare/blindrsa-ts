@@ -1,12 +1,13 @@
 // Copyright (c) 2023 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import { blindRSAExample } from './blindrsa.js';
 import { webcrypto } from 'node:crypto';
+
+import { blindRSAExample } from './blindrsa.js';
 import { SUITES } from '../src/index.js';
 
 if (typeof crypto === 'undefined') {
-    global.crypto = webcrypto as unknown as Crypto;
+    Object.assign(global, { crypto: webcrypto });
 }
 
 async function examples() {
