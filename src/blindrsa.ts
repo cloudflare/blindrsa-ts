@@ -26,8 +26,8 @@ export class BlindRSA {
     private static readonly NAME = 'RSA-PSS';
 
     constructor(
-        private readonly hash: string,
-        private readonly saltLength: number,
+        public readonly hash: string,
+        public readonly saltLength: number,
         private readonly prepareType: PrepareType,
     ) {
         switch (this.prepareType) {
