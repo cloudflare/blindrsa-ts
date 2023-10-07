@@ -3,38 +3,59 @@
 
 // Blind RSA draft 14
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-rsa-blind-signatures-14
-import { BlindRSA, PrepareType } from './blindrsa.js';
+import { BlindRSA, PrepareType, type BlindRSAParams } from './blindrsa.js';
 
-export type { BlindRSA };
+export { BlindRSA, type BlindRSAParams };
 
-export const SUITES = {
+export const Params: Record<string, BlindRSAParams> = {
+    RSABSSA_SHA384_PSS_Randomized: {
+        name: 'RSABSSA-SHA384-PSS-Randomized',
+        hash: 'SHA-384',
+        saltLength: 48,
+        prepareType: PrepareType.Randomized,
+    },
+    RSABSSA_SHA384_PSS_Deterministic: {
+        name: 'RSABSSA-SHA384-PSS-Deterministic',
+        hash: 'SHA-384',
+        saltLength: 48,
+        prepareType: PrepareType.Deterministic,
+    },
+    RSABSSA_SHA384_PSSZERO_Randomized: {
+        name: 'RSABSSA-SHA384-PSSZERO-Randomized',
+        hash: 'SHA-384',
+        saltLength: 0,
+        prepareType: PrepareType.Randomized,
+    },
+    RSABSSA_SHA384_PSSZERO_Deterministic: {
+        name: 'RSABSSA-SHA384-PSSZERO-Deterministic',
+        hash: 'SHA-384',
+        saltLength: 0,
+        prepareType: PrepareType.Deterministic,
+    },
+} as const;
+
+export const RSABSSA = {
     SHA384: {
+        generateKey: (
+            algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent'>,
+        ): Promise<CryptoKeyPair> => BlindRSA.generateKey({ ...algorithm, hash: 'SHA-384' }),
         PSS: {
-            Randomized: () => new BlindRSA('SHA-384', 48, PrepareType.Randomized),
-            Deterministic: () => new BlindRSA('SHA-384', 48, PrepareType.Deterministic),
+            Randomized: () => new BlindRSA(Params.RSABSSA_SHA384_PSS_Randomized),
+            Deterministic: () => new BlindRSA(Params.RSABSSA_SHA384_PSS_Deterministic),
         },
         PSSZero: {
-            Randomized: () => new BlindRSA('SHA-384', 0, PrepareType.Randomized),
-            Deterministic: () => new BlindRSA('SHA-384', 0, PrepareType.Deterministic),
+            Randomized: () => new BlindRSA(Params.RSABSSA_SHA384_PSSZERO_Randomized),
+            Deterministic: () => new BlindRSA(Params.RSABSSA_SHA384_PSSZERO_Deterministic),
         },
     },
 } as const;
 
 export function getSuiteByName(name: string): BlindRSA {
-    const lstSuites = [
-        SUITES.SHA384.PSS.Randomized,
-        SUITES.SHA384.PSSZero.Randomized,
-        SUITES.SHA384.PSS.Deterministic,
-        SUITES.SHA384.PSSZero.Deterministic,
-    ];
-
-    const nameLowerCaee = name.toLowerCase();
-    for (const suite of lstSuites) {
-        const ss = suite();
-        if (nameLowerCaee === ss.toString().toLowerCase()) {
-            return ss;
+    for (const suiteParams of Object.values(Params)) {
+        if (name.toLowerCase() === suiteParams.name.toLowerCase()) {
+            return new BlindRSA(suiteParams);
         }
     }
 
-    throw new Error('wrong suite name');
+    throw new Error(`wrong suite name: ${name}`);
 }

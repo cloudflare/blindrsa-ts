@@ -1,6 +1,8 @@
 // Copyright (c) 2023 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
+import sjcl from './sjcl/index.js';
+
 import {
     assertNever,
     emsa_pss_encode,
@@ -13,8 +15,6 @@ import {
     rsavp1,
 } from './util.js';
 
-import sjcl from './sjcl/index.js';
-
 export enum PrepareType {
     Deterministic = 0,
     Randomized = 32,
@@ -22,31 +22,34 @@ export enum PrepareType {
 
 export type BlindOutput = { blindedMsg: Uint8Array; inv: Uint8Array };
 
+export interface BlindRSAParams {
+    name: string;
+    hash: string;
+    saltLength: number;
+    prepareType: PrepareType;
+}
+
 export class BlindRSA {
     private static readonly NAME = 'RSA-PSS';
 
-    constructor(
-        public readonly hash: string,
-        public readonly saltLength: number,
-        private readonly prepareType: PrepareType,
-    ) {
-        switch (this.prepareType) {
+    constructor(public readonly params: BlindRSAParams) {
+        switch (params.prepareType) {
             case PrepareType.Deterministic:
             case PrepareType.Randomized:
                 return;
             default:
-                assertNever('PrepareType', prepareType);
+                assertNever('PrepareType', params.prepareType);
         }
     }
 
     toString(): string {
-        return `RSABSSA-${this.hash.replace('-', '')}-PSS${this.saltLength === 0 ? 'ZERO' : ''}-${
-            PrepareType[this.prepareType]
-        }`;
+        return `RSABSSA-${this.params.hash.replace('-', '')}-PSS${
+            this.params.saltLength === 0 ? 'ZERO' : ''
+        }-${PrepareType[this.params.prepareType]}`;
     }
 
     prepare(msg: Uint8Array): Uint8Array {
-        const msg_prefix_len = this.prepareType;
+        const msg_prefix_len = this.params.prepareType;
         const msg_prefix = crypto.getRandomValues(new Uint8Array(msg_prefix_len));
         return joinAll([msg_prefix, msg]);
     }
@@ -73,8 +76,8 @@ export class BlindRSA {
             key.algorithm as RsaHashedKeyGenParams;
         const modulusLengthBytes = Math.ceil(modulusLengthBits / 8);
         const hash = (hashFn as Algorithm).name;
-        if (hash.toLowerCase() !== this.hash.toLowerCase()) {
-            throw new Error(`hash is not ${this.hash}`);
+        if (hash.toLowerCase() !== this.params.hash.toLowerCase()) {
+            throw new Error(`hash is not ${this.params.hash}`);
         }
         const jwkKey = await crypto.subtle.exportKey('jwk', key);
 
@@ -98,7 +101,7 @@ export class BlindRSA {
         // 1. encoded_msg = EMSA-PSS-ENCODE(msg, bit_len(n))
         //    with Hash, MGF, and salt_len as defined in the parameters
         // 2. If EMSA-PSS-ENCODE raises an error, raise the error and stop
-        const opts = { sLen: this.saltLength, hash };
+        const opts = { sLen: this.params.saltLength, hash };
         const encoded_msg = await emsa_pss_encode(msg, modulusLength - 1, opts);
 
         // 3. m = bytes_to_int(encoded_msg)
@@ -210,7 +213,7 @@ export class BlindRSA {
         // 5. result = RSASSA-PSS-VERIFY(pk, msg, sig)
         // 6. If result = "valid signature", output sig, else
         //    raise "invalid signature" and stop
-        const algorithm = { name: BlindRSA.NAME, saltLength: this.saltLength };
+        const algorithm = { name: BlindRSA.NAME, saltLength: this.params.saltLength };
         if (!(await crypto.subtle.verify(algorithm, publicKey, sig, msg))) {
             throw new Error('invalid signature');
         }
@@ -218,21 +221,24 @@ export class BlindRSA {
         return sig;
     }
 
-    generateKey(
-        algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent'>,
-        extractable: boolean,
-        keyUsages: readonly KeyUsage[],
+    static generateKey(
+        algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
     ): Promise<CryptoKeyPair> {
-        return crypto.subtle.generateKey(
-            { ...algorithm, name: BlindRSA.NAME, hash: this.hash },
-            extractable,
-            keyUsages,
-        );
+        return crypto.subtle.generateKey({ ...algorithm, name: 'RSA-PSS' }, true, [
+            'sign',
+            'verify',
+        ]);
     }
 
-    verify(publicKey: CryptoKey, signature: ArrayBuffer, message: ArrayBuffer): Promise<boolean> {
+    generateKey(
+        algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent'>,
+    ): Promise<CryptoKeyPair> {
+        return BlindRSA.generateKey({ ...algorithm, hash: this.params.hash });
+    }
+
+    verify(publicKey: CryptoKey, signature: Uint8Array, message: Uint8Array): Promise<boolean> {
         return crypto.subtle.verify(
-            { name: BlindRSA.NAME, saltLength: this.saltLength },
+            { name: BlindRSA.NAME, saltLength: this.params.saltLength },
             publicKey,
             signature,
             message,
