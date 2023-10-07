@@ -5,6 +5,8 @@
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-rsa-blind-signatures-14
 import { BlindRSA, PrepareType } from './blindrsa.js';
 
+export type { BlindRSA };
+
 export const SUITES = {
     SHA384: {
         PSS: {

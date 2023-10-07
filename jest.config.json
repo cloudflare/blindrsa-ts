@@ -5,11 +5,8 @@
     "testEnvironment": "node",
     "transform": {},
     "setupFiles": [
-        "./test/jest.setup-file.js"
+        "./lib/test/jest.setup-file.js"
     ],
     "collectCoverage": true,
-    "collectCoverageFrom": [
-        "!**/*.json"
-    ],
     "verbose": true
 }

@@ -79,15 +79,16 @@ async function keysFromVector(v: Vector, extractable: boolean): Promise<CryptoKe
 }
 
 test('Parameters', () => {
+    // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-rsa-blind-signatures-14
     const hash = 'SHA-384';
-    const vectorList = [
+    const suiteList = [
         { hash, saltLength: 0x30, suite: SUITES.SHA384.PSS.Deterministic() },
         { hash, saltLength: 0x30, suite: SUITES.SHA384.PSS.Randomized() },
         { hash, saltLength: 0x00, suite: SUITES.SHA384.PSSZero.Deterministic() },
         { hash, saltLength: 0x00, suite: SUITES.SHA384.PSSZero.Randomized() },
     ];
 
-    for (const v of vectorList) {
+    for (const v of suiteList) {
         expect(v.suite.saltLength).toBe(v.saltLength);
         expect(v.suite.hash).toBe(v.hash);
     }
