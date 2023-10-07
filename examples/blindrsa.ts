@@ -6,14 +6,10 @@ import type { BlindRSA } from '../src/index.js';
 // Example: BlindRSA protocol execution.
 export async function blindRSAExample(suite: BlindRSA) {
     // Setup: Generate server keypair.
-    const { privateKey, publicKey } = await suite.generateKey(
-        {
-            publicExponent: Uint8Array.from([1, 0, 1]),
-            modulusLength: 2048,
-        },
-        true,
-        ['sign', 'verify'],
-    );
+    const { privateKey, publicKey } = await suite.generateKey({
+        publicExponent: Uint8Array.from([1, 0, 1]),
+        modulusLength: 2048,
+    });
 
     // Client                                       Server
     // ====================================================
@@ -52,7 +48,7 @@ export async function blindRSAExample(suite: BlindRSA) {
     const signature = await suite.finalize(publicKey, preparedMsg, blindSignature, inv);
     //
     // Step 4: Anyone can verify the signature using the
-    // sever's public key.
+    // server's public key.
     const isValid = await suite.verify(publicKey, signature, preparedMsg);
 
     console.log(`Example BlindRSA - Suite: ${suite}`);

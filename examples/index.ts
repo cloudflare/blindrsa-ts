@@ -3,18 +3,19 @@
 
 import { webcrypto } from 'node:crypto';
 
+import { RSABSSA } from '../src/index.js';
+
 import { blindRSAExample } from './blindrsa.js';
-import { SUITES } from '../src/index.js';
 
 if (typeof crypto === 'undefined') {
     Object.assign(global, { crypto: webcrypto });
 }
 
 async function examples() {
-    await blindRSAExample(SUITES.SHA384.PSS.Randomized());
-    await blindRSAExample(SUITES.SHA384.PSSZero.Randomized());
-    await blindRSAExample(SUITES.SHA384.PSS.Deterministic());
-    await blindRSAExample(SUITES.SHA384.PSSZero.Deterministic());
+    await blindRSAExample(RSABSSA.SHA384.PSS.Randomized());
+    await blindRSAExample(RSABSSA.SHA384.PSSZero.Randomized());
+    await blindRSAExample(RSABSSA.SHA384.PSS.Deterministic());
+    await blindRSAExample(RSABSSA.SHA384.PSSZero.Deterministic());
 }
 
 examples().catch((e: Error) => {

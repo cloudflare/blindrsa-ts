@@ -1,10 +1,10 @@
 // Copyright (c) 2023 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import { SUITES, getSuiteByName } from '../src/index.js';
 import { jest } from '@jest/globals';
 import sjcl from '../src/sjcl/index.js';
 import { i2osp } from '../src/util.js';
+import { RSABSSA, getSuiteByName } from '../src/index.js';
 
 // Test vectors
 // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-rsa-blind-signatures-14
@@ -82,15 +82,15 @@ test('Parameters', () => {
     // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-rsa-blind-signatures-14
     const hash = 'SHA-384';
     const suiteList = [
-        { hash, saltLength: 0x30, suite: SUITES.SHA384.PSS.Deterministic() },
-        { hash, saltLength: 0x30, suite: SUITES.SHA384.PSS.Randomized() },
-        { hash, saltLength: 0x00, suite: SUITES.SHA384.PSSZero.Deterministic() },
-        { hash, saltLength: 0x00, suite: SUITES.SHA384.PSSZero.Randomized() },
+        { hash, saltLength: 0x30, suite: RSABSSA.SHA384.PSS.Deterministic() },
+        { hash, saltLength: 0x30, suite: RSABSSA.SHA384.PSS.Randomized() },
+        { hash, saltLength: 0x00, suite: RSABSSA.SHA384.PSSZero.Deterministic() },
+        { hash, saltLength: 0x00, suite: RSABSSA.SHA384.PSSZero.Randomized() },
     ];
 
     for (const v of suiteList) {
-        expect(v.suite.saltLength).toBe(v.saltLength);
-        expect(v.suite.hash).toBe(v.hash);
+        expect(v.suite.params.saltLength).toBe(v.saltLength);
+        expect(v.suite.params.hash).toBe(v.hash);
     }
 });
 
@@ -103,7 +103,7 @@ describe.each(vectors)('Errors-vec$#', (v: Vector) => {
         const blindedSig = crypto.getRandomValues(new Uint8Array(32));
         const errorMsg = 'key is not extractable';
 
-        const blindRSA = SUITES.SHA384.PSS.Randomized();
+        const blindRSA = RSABSSA.SHA384.PSS.Randomized();
         await expect(blindRSA.blind(publicKey, msg)).rejects.toThrow(errorMsg);
         await expect(blindRSA.blindSign(privateKey, blindedMsg)).rejects.toThrow(errorMsg);
         await expect(blindRSA.finalize(publicKey, msg, blindedSig, inv)).rejects.toThrow(errorMsg);
@@ -127,7 +127,7 @@ describe.each(vectors)('Errors-vec$#', (v: Vector) => {
         const blindedSig = crypto.getRandomValues(new Uint8Array(32));
         const errorMsg = 'key is not RSA-PSS';
 
-        const blindRSA = SUITES.SHA384.PSS.Randomized();
+        const blindRSA = RSABSSA.SHA384.PSS.Randomized();
         await expect(blindRSA.blind(publicKey, msg)).rejects.toThrow(errorMsg);
         await expect(blindRSA.blindSign(privateKey, blindedMsg)).rejects.toThrow(errorMsg);
         await expect(blindRSA.finalize(publicKey, msg, blindedSig, inv)).rejects.toThrow(errorMsg);
