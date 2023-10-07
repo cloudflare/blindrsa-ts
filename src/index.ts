@@ -36,5 +36,3 @@ export function getSuiteByName(name: string): BlindRSA {
 
     throw new Error('wrong suite name');
 }
-
-export { BlindRSA };
