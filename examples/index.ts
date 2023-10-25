@@ -4,7 +4,6 @@
 import { webcrypto } from 'node:crypto';
 
 import { RSABSSA } from '../src/index.js';
-
 import { blindRSAExample } from './blindrsa.js';
 
 if (typeof crypto === 'undefined') {

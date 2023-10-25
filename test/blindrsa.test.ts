@@ -7,8 +7,8 @@ import { i2osp } from '../src/util.js';
 import { RSABSSA, getSuiteByName } from '../src/index.js';
 
 // Test vectors
-// https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-rsa-blind-signatures-14
-import vectors from './testdata/test_vector_v14.json';
+// https://www.rfc-editor.org/rfc/rfc9474.html#name-test-vectors
+import vectors from './testdata/test_vectors_rfc9474.json';
 
 function hexNumToB64URL(x: string): string {
     if (x.startsWith('0x')) {
@@ -79,7 +79,6 @@ async function keysFromVector(v: Vector, extractable: boolean): Promise<CryptoKe
 }
 
 test('Parameters', () => {
-    // https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-rsa-blind-signatures-14
     const hash = 'SHA-384';
     const suiteList = [
         { hash, saltLength: 0x30, suite: RSABSSA.SHA384.PSS.Deterministic() },
@@ -152,6 +151,8 @@ describe.each(vectors)('TestVectors', (v: Vector) => {
         `${v.name}`,
         async () => {
             const blindRSA = getSuiteByName(v.name);
+            expect(blindRSA.toString()).toBe(v.name);
+
             const msg = hexToUint8(v.msg);
             const inputMsg = blindRSA.prepare(msg);
             expect(uint8ToHex(inputMsg)).toBe(v.input_msg);

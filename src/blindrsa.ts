@@ -2,7 +2,6 @@
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
 import sjcl from './sjcl/index.js';
-
 import {
     assertNever,
     emsa_pss_encode,
@@ -43,9 +42,10 @@ export class BlindRSA {
     }
 
     toString(): string {
-        return `RSABSSA-${this.params.hash.replace('-', '')}-PSS${
-            this.params.saltLength === 0 ? 'ZERO' : ''
-        }-${PrepareType[this.params.prepareType]}`;
+        const hash = this.params.hash.replace('-', '');
+        const pssType = 'PSS' + (this.params.saltLength === 0 ? 'ZERO' : '');
+        const prepare = PrepareType[this.params.prepareType];
+        return `RSABSSA-${hash}-${pssType}-${prepare}`;
     }
 
     prepare(msg: Uint8Array): Uint8Array {
@@ -224,7 +224,7 @@ export class BlindRSA {
     static generateKey(
         algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
     ): Promise<CryptoKeyPair> {
-        return crypto.subtle.generateKey({ ...algorithm, name: 'RSA-PSS' }, true, [
+        return crypto.subtle.generateKey({ ...algorithm, name: BlindRSA.NAME }, true, [
             'sign',
             'verify',
         ]);
