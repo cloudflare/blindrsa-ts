@@ -1,12 +1,24 @@
 // Copyright (c) 2023 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-// Blind RSA draft 14
-// https://datatracker.ietf.org/doc/html/draft-irtf-cfrg-rsa-blind-signatures-14
+// RSA Blind Signature Protocol
+//
+// The RFC-9474 specifies (1) a protocol for computing RSA blind signatures
+// using RSA-PSS encoding and (2) a family of variants for this protocol,
+// denoted RSABSSA (RSA Blind Signature with Appendix).
+//
+// In order to facilitate deployment, it is defined in such a way that the
+// resulting (unblinded) signature can be verified with a standard RSA-PSS
+// library.
+//
+// RFC9474: https://www.rfc-editor.org/info/rfc9474
+
 import { BlindRSA, PrepareType, type BlindRSAParams } from './blindrsa.js';
 
 export { BlindRSA, type BlindRSAParams };
 
+// Params allows to instantiate the RSABSSA protocol using BlindRSA class
+// with one of the approved variants.
 export const Params: Record<string, BlindRSAParams> = {
     RSABSSA_SHA384_PSS_Randomized: {
         name: 'RSABSSA-SHA384-PSS-Randomized',
@@ -34,6 +46,7 @@ export const Params: Record<string, BlindRSAParams> = {
     },
 } as const;
 
+// RSABSSA is used to access the variants of the protocol.
 export const RSABSSA = {
     SHA384: {
         generateKey: (
