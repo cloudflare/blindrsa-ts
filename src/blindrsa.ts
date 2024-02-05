@@ -28,10 +28,15 @@ export interface BlindRSAParams {
     prepareType: PrepareType;
 }
 
+export interface BlindRSAPlatformParams {
+    supportsRSARAW: boolean;
+}
+
 export class BlindRSA {
     private static readonly NAME = 'RSA-PSS';
+    private static readonly NATIVE_SUPPORT_NAME = 'RSA-RAW';
 
-    constructor(public readonly params: BlindRSAParams) {
+    constructor(public readonly params: BlindRSAParams & BlindRSAPlatformParams) {
         switch (params.prepareType) {
             case PrepareType.Deterministic:
             case PrepareType.Randomized:
@@ -142,6 +147,9 @@ export class BlindRSA {
     }
 
     async blindSign(privateKey: CryptoKey, blindMsg: Uint8Array): Promise<Uint8Array> {
+        if (this.params.supportsRSARAW) {
+            return this.rsaRawBlingSign(privateKey, blindMsg);
+        }
         const { jwkKey, modulusLengthBytes: kLen } = await this.extractKeyParams(
             privateKey,
             'private',
@@ -172,6 +180,24 @@ export class BlindRSA {
         // 5. blind_sig = int_to_bytes(s, kLen)
         // 6. output blind_sig
         return i2osp(s, kLen);
+    }
+
+    private async rsaRawBlingSign(
+        privateKey: CryptoKey,
+        blindMsg: Uint8Array,
+    ): Promise<Uint8Array> {
+        const algorithmName = privateKey.algorithm.name;
+        privateKey.algorithm.name = BlindRSA.NATIVE_SUPPORT_NAME;
+        try {
+            const signature = await crypto.subtle.sign(
+                { name: BlindRSA.NATIVE_SUPPORT_NAME },
+                privateKey,
+                blindMsg,
+            );
+            return new Uint8Array(signature);
+        } finally {
+            privateKey.algorithm.name = algorithmName;
+        }
     }
 
     async finalize(
