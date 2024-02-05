@@ -13,7 +13,12 @@
 //
 // RFC9474: https://www.rfc-editor.org/info/rfc9474
 
-import { BlindRSA, PrepareType, type BlindRSAParams } from './blindrsa.js';
+import {
+    BlindRSA,
+    PrepareType,
+    type BlindRSAParams,
+    type BlindRSAPlatformParams,
+} from './blindrsa.js';
 
 export { BlindRSA, type BlindRSAParams };
 
@@ -53,20 +58,27 @@ export const RSABSSA = {
             algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent'>,
         ): Promise<CryptoKeyPair> => BlindRSA.generateKey({ ...algorithm, hash: 'SHA-384' }),
         PSS: {
-            Randomized: () => new BlindRSA(Params.RSABSSA_SHA384_PSS_Randomized),
-            Deterministic: () => new BlindRSA(Params.RSABSSA_SHA384_PSS_Deterministic),
+            Randomized: (params: BlindRSAPlatformParams = { supportsRSARAW: false }) =>
+                new BlindRSA({ ...Params.RSABSSA_SHA384_PSS_Randomized, ...params }),
+            Deterministic: (params: BlindRSAPlatformParams = { supportsRSARAW: false }) =>
+                new BlindRSA({ ...Params.RSABSSA_SHA384_PSS_Deterministic, ...params }),
         },
         PSSZero: {
-            Randomized: () => new BlindRSA(Params.RSABSSA_SHA384_PSSZERO_Randomized),
-            Deterministic: () => new BlindRSA(Params.RSABSSA_SHA384_PSSZERO_Deterministic),
+            Randomized: (params: BlindRSAPlatformParams = { supportsRSARAW: false }) =>
+                new BlindRSA({ ...Params.RSABSSA_SHA384_PSSZERO_Randomized, ...params }),
+            Deterministic: (params: BlindRSAPlatformParams = { supportsRSARAW: false }) =>
+                new BlindRSA({ ...Params.RSABSSA_SHA384_PSSZERO_Deterministic, ...params }),
         },
     },
 } as const;
 
-export function getSuiteByName(name: string): BlindRSA {
+export function getSuiteByName(
+    name: string,
+    params: BlindRSAPlatformParams = { supportsRSARAW: false },
+): BlindRSA {
     for (const suiteParams of Object.values(Params)) {
         if (name.toLowerCase() === suiteParams.name.toLowerCase()) {
-            return new BlindRSA(suiteParams);
+            return new BlindRSA({ ...suiteParams, ...params });
         }
     }
 
