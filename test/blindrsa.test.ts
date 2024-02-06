@@ -147,10 +147,12 @@ describe.each(vectors)('TestVectors', (v: Vector) => {
             .mockReturnValueOnce(rBytes); // mock for random blind
     });
 
-    test(
+    const params = [[], [{ supportsRSARAW: true }]];
+
+    test.each(params)(
         `${v.name}`,
-        async () => {
-            const blindRSA = getSuiteByName(v.name);
+        async (...params) => {
+            const blindRSA = getSuiteByName(v.name, ...params);
             expect(blindRSA.toString()).toBe(v.name);
 
             const msg = hexToUint8(v.msg);
