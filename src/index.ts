@@ -20,7 +20,7 @@ import {
     type BlindRSAPlatformParams,
 } from './blindrsa.js';
 
-export { BlindRSA, type BlindRSAParams };
+export { BlindRSA, type BlindRSAParams, type BlindRSAPlatformParams };
 
 // Params allows to instantiate the RSABSSA protocol using BlindRSA class
 // with one of the approved variants.
