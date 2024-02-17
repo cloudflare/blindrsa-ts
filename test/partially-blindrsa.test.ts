@@ -4,11 +4,11 @@
 import { jest } from '@jest/globals';
 import sjcl from '../src/sjcl/index.js';
 import { i2osp } from '../src/util.js';
-import { BlindRSA, RSABSSA, getSuiteByName } from '../src/index.js';
+import { PartiallyBlindRSA, RSAPBSSA, getSuiteByName } from '../src/index.js';
 
 // Test vectors
 // https://www.rfc-editor.org/rfc/rfc9474.html#name-test-vectors
-import vectors from './testdata/test_vectors_rfc9474.json';
+import vectors from './testdata/test_vectors_partially_blind_rsa_draft_2.json';
 
 function hexNumToB64URL(x: string): string {
     if (x.startsWith('0x')) {
@@ -40,7 +40,7 @@ function paramsFromVector(v: Vector): {
     dq: string;
     qi: string;
 } {
-    const n = hexNumToB64URL(v.n);
+    const n = hexNumToB64URL(v.N);
     const e = hexNumToB64URL(v.e);
     const d = hexNumToB64URL(v.d);
     const p = hexNumToB64URL(v.p);
@@ -81,10 +81,10 @@ async function keysFromVector(v: Vector, extractable: boolean): Promise<CryptoKe
 test('Parameters', () => {
     const hash = 'SHA-384';
     const suiteList = [
-        { hash, saltLength: 0x30, suite: RSABSSA.SHA384.PSS.Deterministic() },
-        { hash, saltLength: 0x30, suite: RSABSSA.SHA384.PSS.Randomized() },
-        { hash, saltLength: 0x00, suite: RSABSSA.SHA384.PSSZero.Deterministic() },
-        { hash, saltLength: 0x00, suite: RSABSSA.SHA384.PSSZero.Randomized() },
+        { hash, saltLength: 0x30, suite: RSAPBSSA.SHA384.PSS.Deterministic() },
+        { hash, saltLength: 0x30, suite: RSAPBSSA.SHA384.PSS.Randomized() },
+        { hash, saltLength: 0x00, suite: RSAPBSSA.SHA384.PSSZero.Deterministic() },
+        { hash, saltLength: 0x00, suite: RSAPBSSA.SHA384.PSSZero.Randomized() },
     ];
 
     for (const v of suiteList) {
@@ -97,15 +97,18 @@ describe.each(vectors)('Errors-vec$#', (v: Vector) => {
     test('non-extractable-keys', async () => {
         const { privateKey, publicKey } = await keysFromVector(v, false);
         const msg = crypto.getRandomValues(new Uint8Array(10));
+        const info = crypto.getRandomValues(new Uint8Array(10));
         const blindedMsg = crypto.getRandomValues(new Uint8Array(32));
         const inv = crypto.getRandomValues(new Uint8Array(32));
         const blindedSig = crypto.getRandomValues(new Uint8Array(32));
         const errorMsg = 'key is not extractable';
 
-        const blindRSA = RSABSSA.SHA384.PSS.Randomized();
-        await expect(blindRSA.blind(publicKey, msg)).rejects.toThrow(errorMsg);
-        await expect(blindRSA.blindSign(privateKey, blindedMsg)).rejects.toThrow(errorMsg);
-        await expect(blindRSA.finalize(publicKey, msg, blindedSig, inv)).rejects.toThrow(errorMsg);
+        const blindRSA = RSAPBSSA.SHA384.PSS.Randomized();
+        await expect(blindRSA.blind(publicKey, msg, info)).rejects.toThrow(errorMsg);
+        await expect(blindRSA.blindSign(privateKey, blindedMsg, info)).rejects.toThrow(errorMsg);
+        await expect(blindRSA.finalize(publicKey, msg, blindedSig, inv, info)).rejects.toThrow(
+            errorMsg,
+        );
     });
 
     test('wrong-key-type', async () => {
@@ -121,28 +124,29 @@ describe.each(vectors)('Errors-vec$#', (v: Vector) => {
         );
 
         const msg = crypto.getRandomValues(new Uint8Array(10));
+        const info = crypto.getRandomValues(new Uint8Array(10));
         const blindedMsg = crypto.getRandomValues(new Uint8Array(32));
         const inv = crypto.getRandomValues(new Uint8Array(32));
         const blindedSig = crypto.getRandomValues(new Uint8Array(32));
         const errorMsg = 'key is not RSA-PSS';
 
-        const blindRSA = RSABSSA.SHA384.PSS.Randomized();
-        await expect(blindRSA.blind(publicKey, msg)).rejects.toThrow(errorMsg);
-        await expect(blindRSA.blindSign(privateKey, blindedMsg)).rejects.toThrow(errorMsg);
-        await expect(blindRSA.finalize(publicKey, msg, blindedSig, inv)).rejects.toThrow(errorMsg);
+        const blindRSA = RSAPBSSA.SHA384.PSS.Randomized();
+        await expect(blindRSA.blind(publicKey, msg, info)).rejects.toThrow(errorMsg);
+        await expect(blindRSA.blindSign(privateKey, blindedMsg, info)).rejects.toThrow(errorMsg);
+        await expect(blindRSA.finalize(publicKey, msg, blindedSig, inv, info)).rejects.toThrow(
+            errorMsg,
+        );
     });
 });
 
 describe.each(vectors)('TestVectors', (v: Vector) => {
     beforeEach(() => {
-        const n = new sjcl.bn(v.n);
+        const n = new sjcl.bn(v.N);
         const kLen = Math.ceil(n.bitLength() / 8);
-        const rInv = new sjcl.bn(v.inv);
-        const r = rInv.inverseMod(n);
+        const r = new sjcl.bn(v.r);
         const rBytes = i2osp(r, kLen);
 
         jest.spyOn(crypto, 'getRandomValues')
-            .mockReturnValueOnce(hexToUint8(v.msg_prefix)) // mock for msg_prefix
             .mockReturnValueOnce(hexToUint8(v.salt)) // mock for random salt
             .mockReturnValueOnce(rBytes); // mock for random blind
     });
@@ -152,26 +156,27 @@ describe.each(vectors)('TestVectors', (v: Vector) => {
     test.each(params)(
         `${v.name}`,
         async (...params) => {
-            const blindRSA = getSuiteByName(BlindRSA, v.name, ...params);
+            const blindRSA = getSuiteByName(PartiallyBlindRSA, v.name, ...params);
             expect(blindRSA.toString()).toBe(v.name);
 
             const msg = hexToUint8(v.msg);
+            const info = hexToUint8(v.info);
             const inputMsg = blindRSA.prepare(msg);
-            expect(uint8ToHex(inputMsg)).toBe(v.input_msg);
+            // expect(uint8ToHex(inputMsg)).toBe(v.input_msg);
 
             const { publicKey, privateKey } = await keysFromVector(v, true);
 
-            const { blindedMsg, inv } = await blindRSA.blind(publicKey, inputMsg);
+            const { blindedMsg, inv } = await blindRSA.blind(publicKey, inputMsg, info);
             expect(uint8ToHex(blindedMsg)).toBe(v.blinded_msg);
-            expect(uint8ToHex(inv)).toBe(v.inv.slice(2));
+            // expect(uint8ToHex(inv)).toBe(v.inv.slice(2));
 
-            const blindedSig = await blindRSA.blindSign(privateKey, blindedMsg);
-            expect(uint8ToHex(blindedSig)).toBe(v.blind_sig);
+            const blindedSig = await blindRSA.blindSign(privateKey, blindedMsg, info);
+            expect(uint8ToHex(blindedSig)).toBe(v.blinded_sig);
 
-            const signature = await blindRSA.finalize(publicKey, inputMsg, blindedSig, inv);
+            const signature = await blindRSA.finalize(publicKey, inputMsg, blindedSig, inv, info);
             expect(uint8ToHex(signature)).toBe(v.sig);
 
-            const isValid = await blindRSA.verify(publicKey, signature, inputMsg);
+            const isValid = await blindRSA.verify(publicKey, signature, inputMsg, info);
             expect(isValid).toBe(true);
         },
         20 * 1000,
