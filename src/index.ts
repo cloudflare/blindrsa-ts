@@ -19,8 +19,9 @@ import {
     type BlindRSAParams,
     type BlindRSAPlatformParams,
 } from './blindrsa.js';
+import { PartiallyBlindRSA } from './partially-blindrsa.js';
 
-export { BlindRSA, type BlindRSAParams, type BlindRSAPlatformParams };
+export { BlindRSA, PartiallyBlindRSA, type BlindRSAParams, type BlindRSAPlatformParams };
 
 // Params allows to instantiate the RSABSSA protocol using BlindRSA class
 // with one of the approved variants.
@@ -49,6 +50,30 @@ export const Params: Record<string, BlindRSAParams> = {
         saltLength: 0,
         prepareType: PrepareType.Deterministic,
     },
+    RSAPBSSA_SHA384_PSS_Randomized: {
+        name: 'RSAPBSSA-SHA384-PSS-Randomized',
+        hash: 'SHA-384',
+        saltLength: 48,
+        prepareType: PrepareType.Randomized,
+    },
+    RSAPBSSA_SHA384_PSS_Deterministic: {
+        name: 'RSAPBSSA-SHA384-PSS-Deterministic',
+        hash: 'SHA-384',
+        saltLength: 48,
+        prepareType: PrepareType.Deterministic,
+    },
+    RSAPBSSA_SHA384_PSSZERO_Randomized: {
+        name: 'RSAPBSSA-SHA384-PSSZERO-Randomized',
+        hash: 'SHA-384',
+        saltLength: 0,
+        prepareType: PrepareType.Randomized,
+    },
+    RSAPBSSA_SHA384_PSSZERO_Deterministic: {
+        name: 'RSAPBSSA-SHA384-PSSZERO-Deterministic',
+        hash: 'SHA-384',
+        saltLength: 0,
+        prepareType: PrepareType.Deterministic,
+    },
 } as const;
 
 // RSABSSA is used to access the variants of the protocol.
@@ -72,13 +97,41 @@ export const RSABSSA = {
     },
 } as const;
 
-export function getSuiteByName(
+// RSAPBSSA is used to access the variants of the protocol.
+export const RSAPBSSA = {
+    SHA384: {
+        generateKey: (
+            algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent'>,
+        ): Promise<CryptoKeyPair> =>
+            PartiallyBlindRSA.generateKey({ ...algorithm, hash: 'SHA-384' }),
+        PSS: {
+            Randomized: (params: BlindRSAPlatformParams = { supportsRSARAW: false }) =>
+                new PartiallyBlindRSA({ ...Params.RSAPBSSA_SHA384_PSS_Randomized, ...params }),
+            Deterministic: (params: BlindRSAPlatformParams = { supportsRSARAW: false }) =>
+                new PartiallyBlindRSA({ ...Params.RSAPBSSA_SHA384_PSS_Deterministic, ...params }),
+        },
+        PSSZero: {
+            Randomized: (params: BlindRSAPlatformParams = { supportsRSARAW: false }) =>
+                new PartiallyBlindRSA({ ...Params.RSAPBSSA_SHA384_PSSZERO_Randomized, ...params }),
+            Deterministic: (params: BlindRSAPlatformParams = { supportsRSARAW: false }) =>
+                new PartiallyBlindRSA({
+                    ...Params.RSAPBSSA_SHA384_PSSZERO_Deterministic,
+                    ...params,
+                }),
+        },
+    },
+} as const;
+
+export function getSuiteByName<T>(
+    newT: {
+        new (params: BlindRSAParams & BlindRSAPlatformParams): T;
+    },
     name: string,
     params: BlindRSAPlatformParams = { supportsRSARAW: false },
-): BlindRSA {
+): T {
     for (const suiteParams of Object.values(Params)) {
         if (name.toLowerCase() === suiteParams.name.toLowerCase()) {
-            return new BlindRSA({ ...suiteParams, ...params });
+            return new newT({ ...suiteParams, ...params });
         }
     }
 
