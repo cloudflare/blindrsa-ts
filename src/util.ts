@@ -41,6 +41,10 @@ export function i2osp(num: sjcl.bn, byteLength: number): Uint8Array {
     return bytes;
 }
 
+export function int_to_bytes(num: number, byteLength: number): Uint8Array {
+    return i2osp(new sjcl.bn(num), byteLength);
+}
+
 export function joinAll(a: Uint8Array[]): Uint8Array {
     let size = 0;
     for (let i = 0; i < a.length; i++) {
@@ -275,3 +279,9 @@ export function random_integer_uniform(n: sjcl.bn, kLen: number): sjcl.bn {
 
     throw new Error('reached maximum tries for random integer generation');
 }
+
+export type BigPublicKey = { e: sjcl.bn; n: sjcl.bn };
+
+export type BigSecretKey = { d: sjcl.bn; n: sjcl.bn; p: sjcl.bn; q: sjcl.bn };
+
+export type BigKeyPair = { publicKey: BigPublicKey; secretKey: BigSecretKey };
