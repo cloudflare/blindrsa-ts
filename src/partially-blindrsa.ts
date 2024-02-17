@@ -169,11 +169,9 @@ export class PartiallyBlindRSA {
         }
         const n = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.n));
         const d = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.d));
-        const e = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.e));
         const p = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.p));
         const q = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.q));
         const sk: BigSecretKey = { n, d, p, q };
-        const pk: BigPublicKey = { n, e };
 
         // 1. m = bytes_to_int(blinded_msg)
         const m = os2ip(blindMsg);
@@ -266,7 +264,7 @@ export class PartiallyBlindRSA {
     }
 
     static generateKey(
-        algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
+        _algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
     ): Promise<CryptoKeyPair> {
         throw new Error('not implemented');
     }
