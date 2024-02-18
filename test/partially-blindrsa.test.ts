@@ -147,6 +147,7 @@ describe.each(vectors)('TestVectors', (v: Vector) => {
         const rBytes = i2osp(r, kLen);
 
         jest.spyOn(crypto, 'getRandomValues')
+            .mockReturnValueOnce(hexToUint8(v.msg_prefix)) // mock msg_prefix
             .mockReturnValueOnce(hexToUint8(v.salt)) // mock for random salt
             .mockReturnValueOnce(rBytes); // mock for random blind
     });
@@ -162,18 +163,16 @@ describe.each(vectors)('TestVectors', (v: Vector) => {
             const msg = hexToUint8(v.msg);
             const info = hexToUint8(v.info);
             const inputMsg = blindRSA.prepare(msg);
-            // expect(uint8ToHex(inputMsg)).toBe(v.input_msg);
 
             const { publicKey, privateKey } = await keysFromVector(v, true);
 
             const { blindedMsg, inv } = await blindRSA.blind(publicKey, inputMsg, info);
             expect(uint8ToHex(blindedMsg)).toBe(v.blinded_msg);
-            // expect(uint8ToHex(inv)).toBe(v.inv.slice(2));
 
             const blindedSig = await blindRSA.blindSign(privateKey, blindedMsg, info);
             expect(uint8ToHex(blindedSig)).toBe(v.blinded_sig);
 
-            const signature = await blindRSA.finalize(publicKey, inputMsg, blindedSig, inv, info);
+            const signature = await blindRSA.finalize(publicKey, inputMsg, info, blindedSig, inv);
             expect(uint8ToHex(signature)).toBe(v.sig);
 
             const isValid = await blindRSA.verify(publicKey, signature, inputMsg, info);

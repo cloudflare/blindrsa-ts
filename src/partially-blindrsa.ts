@@ -16,6 +16,7 @@ import {
     type BigPublicKey,
     type BigSecretKey,
     type BigKeyPair,
+    inverseMod,
 } from './util.js';
 
 export enum PrepareType {
@@ -246,7 +247,11 @@ export class PartiallyBlindRSA {
         const pk_derived = await this.derivePublicKey(pk, info);
         const pk_derived_key = await crypto.subtle.importKey(
             'jwk',
-            { e: pk_derived.e.toString(), n: pk_derived.n.toString() },
+            {
+                ...jwkKey,
+                e: sjcl.codec.base64url.fromBits(pk_derived.e.toBits(0)),
+                n: sjcl.codec.base64url.fromBits(pk_derived.n.toBits(0)),
+            },
             { name: PartiallyBlindRSA.NAME, hash: this.params.hash },
             false,
             ['verify'],
@@ -293,7 +298,11 @@ export class PartiallyBlindRSA {
         const pk_derived = await this.derivePublicKey(pk, info);
         const pk_derived_key = await crypto.subtle.importKey(
             'jwk',
-            { e: pk_derived.e.toString(), n: pk_derived.n.toString() },
+            {
+                ...jwkKey,
+                e: sjcl.codec.base64url.fromBits(pk_derived.e.toBits(0)),
+                n: sjcl.codec.base64url.fromBits(pk_derived.n.toBits(0)),
+            },
             { name: PartiallyBlindRSA.NAME, hash: this.params.hash },
             false,
             ['verify'],
@@ -347,7 +356,7 @@ export class PartiallyBlindRSA {
 
         // 8. e' = bytes_to_int(slice(expanded_bytes, lambda_len))
         // 9. output pk_derived = (n, e')
-        const e_prime = os2ip(expanded_bytes.slice(lambda_len));
+        const e_prime = os2ip(expanded_bytes.slice(0, lambda_len));
         return { e: e_prime, n };
     }
 
@@ -359,7 +368,7 @@ export class PartiallyBlindRSA {
         const pk_derived = await this.derivePublicKey({ n: sk.n, e: new sjcl.bn(0) }, info);
 
         // 2. d' = inverse_mod(e', phi)
-        const d_prime = pk_derived.e.inverseMod(phi);
+        const d_prime = inverseMod(pk_derived.e, phi);
 
         // 3. sk_derived = (n, p, q, phi, d')
         const sk_derived: BigSecretKey = { ...sk, d: d_prime };
