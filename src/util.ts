@@ -307,6 +307,20 @@ export function inverseMod(x: sjcl.bn, p: sjcl.bn): sjcl.bn {
     return x.inverseMod(p);
 }
 
+export async function generateSafePrime(_bitLength: number): Promise<sjcl.bn> {
+    throw new Error('not implemented');
+    // Inputs:
+    // - bits, length in bits of the safe prime
+    //
+    // Outputs:
+    // - p, a safe prime integer
+    //
+    // Steps:
+    // 1. p' = random_prime(bits - 1)
+    // 2. p = (2 * p') + 1
+    // 3. if is_prime(p) is True, output p, else go to step 1.
+}
+
 export type BigPublicKey = { e: sjcl.bn; n: sjcl.bn };
 
 export type BigSecretKey = { d: sjcl.bn; n: sjcl.bn; p: sjcl.bn; q: sjcl.bn };

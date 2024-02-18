@@ -17,6 +17,7 @@ import {
     type BigSecretKey,
     type BigKeyPair,
     inverseMod,
+    generateSafePrime,
 } from './util.js';
 
 export enum PrepareType {
@@ -268,10 +269,65 @@ export class PartiallyBlindRSA {
         return sig;
     }
 
-    static generateKey(
-        _algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
+    static async generateKey(
+        algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
     ): Promise<CryptoKeyPair> {
-        throw new Error('not implemented');
+        // 1. p = SafePrime(bits / 2)
+        // 2. q = SafePrime(bits / 2)
+        // 3. while p == q, go to step 2.
+        let p: sjcl.bn;
+        let q: sjcl.bn;
+        do {
+            p = await generateSafePrime((algorithm.modulusLength * 8) / 2);
+            q = await generateSafePrime((algorithm.modulusLength * 8) / 2);
+        } while (p.equals(q));
+
+        // 4. phi = (p - 1) * (q - 1)
+        const phi = p.sub(1).mul(q.sub(1));
+
+        // 5. e = 65537
+        const e = new sjcl.bn(65537);
+
+        // 6. d = inverse_mod(e, phi)
+        const d = inverseMod(e, phi);
+
+        // 7. n = p * q
+        const n = p.mul(q);
+
+        // 7. sk = (n, p, q, phi, d)
+        const sk = await crypto.subtle.importKey(
+            'jwk',
+            {
+                alg: 'PS384',
+                ext: true,
+                key_ops: ['verify'],
+                kty: 'RSA',
+                n: sjcl.codec.base64url.fromBits(n.toBits(0)),
+                p: sjcl.codec.base64url.fromBits(p.toBits(0)),
+                q: sjcl.codec.base64url.fromBits(q.toBits(0)),
+                d: sjcl.codec.base64url.fromBits(d.toBits(0)),
+            },
+            { ...algorithm, name: PartiallyBlindRSA.NAME },
+            false,
+            ['sign'],
+        );
+        // 8. pk = (n, e)
+        const pk = await crypto.subtle.importKey(
+            'jwk',
+            {
+                alg: 'PS384',
+                ext: true,
+                key_ops: ['sign'],
+                kty: 'RSA',
+                n: sjcl.codec.base64url.fromBits(n.toBits(0)),
+                e: sjcl.codec.base64url.fromBits(e.toBits(0)),
+            },
+            { ...algorithm, name: PartiallyBlindRSA.NAME },
+            false,
+            ['verify'],
+        );
+        // 9. output (sk, pk)
+        return { privateKey: sk, publicKey: pk };
     }
 
     generateKey(
