@@ -60,7 +60,7 @@ export function joinAll(a: Uint8Array[]): Uint8Array {
 
 export function xor(a: Uint8Array, b: Uint8Array): Uint8Array {
     if (a.length !== b.length || a.length === 0) {
-        throw new Error('arrays of different length');
+        throw new Error('arrays of different length' + a.length + ' - ' + b.length);
     }
     const n = a.length;
     const c = new Uint8Array(n);
@@ -278,6 +278,33 @@ export function random_integer_uniform(n: sjcl.bn, kLen: number): sjcl.bn {
     }
 
     throw new Error('reached maximum tries for random integer generation');
+}
+
+// implement inverseMod for sjcl.bn where p is even
+export function inverseMod(x: sjcl.bn, p: sjcl.bn): sjcl.bn {
+    if (!(p.getLimb(0) & 1)) {
+        if (!(x.getLimb(0) & 1)) {
+            throw new Error('inverseMod: x must be odd');
+        }
+
+        let [old_r, r] = [BigInt(x.toString()), BigInt(p.toString())];
+        let [old_s, s] = [BigInt(1), BigInt(0)];
+
+        while (r !== 0n) {
+            const quotient = old_r / r;
+            [old_r, r] = [r, old_r - quotient * r];
+            [old_s, s] = [s, old_s - quotient * s];
+        }
+
+        if (old_r > 1n) {
+            throw new Error('The given number is not invertible.');
+        }
+        if (old_s < 0n) {
+            old_s += BigInt(p.toString());
+        }
+        return new sjcl.bn(old_s.toString(16));
+    }
+    return x.inverseMod(p);
 }
 
 export type BigPublicKey = { e: sjcl.bn; n: sjcl.bn };
