@@ -278,41 +278,35 @@ export class PartiallyBlindRSA {
         let p: sjcl.bn;
         let q: sjcl.bn;
         do {
-            p = await generateSafePrime((algorithm.modulusLength * 8) / 2);
-            q = await generateSafePrime((algorithm.modulusLength * 8) / 2);
+            [p, q] = await Promise.all([
+                generateSafePrime(algorithm.modulusLength / 2),
+                generateSafePrime(algorithm.modulusLength / 2),
+            ]);
         } while (p.equals(q));
 
         // 4. phi = (p - 1) * (q - 1)
         const phi = p.sub(1).mul(q.sub(1));
 
-        // 5. e = 65537
-        const e = new sjcl.bn(65537);
+        // 5. e = publicExponent
+        const e = new sjcl.bn(
+            '0x' +
+                Array.from(algorithm.publicExponent)
+                    .map((x) => x.toString(16).padStart(2, '0'))
+                    .join(''),
+        );
 
         // 6. d = inverse_mod(e, phi)
+        // phi = (p-1)(q-1) = pq - p - q + 1 = n - p - q + 1
         const d = inverseMod(e, phi);
 
         // 7. n = p * q
         const n = p.mul(q);
 
         // 7. sk = (n, p, q, phi, d)
+        const dp = d.mod(p.sub(1));
+        const dq = d.mod(q.sub(1));
+        const qi = q.inverseMod(p);
         const sk = await crypto.subtle.importKey(
-            'jwk',
-            {
-                alg: 'PS384',
-                ext: true,
-                key_ops: ['verify'],
-                kty: 'RSA',
-                n: sjcl.codec.base64url.fromBits(n.toBits(0)),
-                p: sjcl.codec.base64url.fromBits(p.toBits(0)),
-                q: sjcl.codec.base64url.fromBits(q.toBits(0)),
-                d: sjcl.codec.base64url.fromBits(d.toBits(0)),
-            },
-            { ...algorithm, name: PartiallyBlindRSA.NAME },
-            false,
-            ['sign'],
-        );
-        // 8. pk = (n, e)
-        const pk = await crypto.subtle.importKey(
             'jwk',
             {
                 alg: 'PS384',
@@ -321,9 +315,30 @@ export class PartiallyBlindRSA {
                 kty: 'RSA',
                 n: sjcl.codec.base64url.fromBits(n.toBits(0)),
                 e: sjcl.codec.base64url.fromBits(e.toBits(0)),
+                p: sjcl.codec.base64url.fromBits(p.toBits(0)),
+                q: sjcl.codec.base64url.fromBits(q.toBits(0)),
+                d: sjcl.codec.base64url.fromBits(d.toBits(0)),
+                dp: sjcl.codec.base64url.fromBits(dp.toBits(0)),
+                dq: sjcl.codec.base64url.fromBits(dq.toBits(0)),
+                qi: sjcl.codec.base64url.fromBits(qi.toBits(0)),
             },
             { ...algorithm, name: PartiallyBlindRSA.NAME },
-            false,
+            true,
+            ['sign'],
+        );
+        // 8. pk = (n, e)
+        const pk = await crypto.subtle.importKey(
+            'jwk',
+            {
+                alg: 'PS384',
+                ext: true,
+                key_ops: ['verify'],
+                kty: 'RSA',
+                n: sjcl.codec.base64url.fromBits(n.toBits(0)),
+                e: sjcl.codec.base64url.fromBits(e.toBits(0)),
+            },
+            { ...algorithm, name: PartiallyBlindRSA.NAME },
+            true,
             ['verify'],
         );
         // 9. output (sk, pk)
