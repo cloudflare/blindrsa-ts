@@ -5,9 +5,14 @@
 import { webcrypto } from 'node:crypto';
 import { RSABSSA } from '../src';
 
+if (typeof crypto === 'undefined') {
+    Object.assign(global, { crypto: webcrypto });
+}
+
 // RSA-RAW is not supported by WebCrypto, so we need to mock it.
 // blindSign operation is similar for deterministic and randomized variants, and salt length is not used during this operation.
 // It matches cloudflare/workerd implementation https://github.com/cloudflare/workerd/blob/6b63c701e263a311c2a3ce64e2aeada69afc32a1/src/workerd/api/crypto-impl-asymmetric.c%2B%2B#L827-L868
+const parentSign = crypto.subtle.sign;
 async function mockSign(
     algorithm: AlgorithmIdentifier | RsaPssParams | EcdsaParams,
     key: CryptoKey,
@@ -23,16 +28,65 @@ async function mockSign(
         }
         key.algorithm.name = 'RSA-PSS';
         try {
-            return RSABSSA.SHA384.PSSZero.Deterministic().blindSign(key, data);
+            // await is needed here because if the promised is returned, the algorithmName could be restored before the key is used, causing an error
+            return await RSABSSA.SHA384.PSSZero.Deterministic().blindSign(key, data);
         } finally {
             key.algorithm.name = algorithmName;
         }
     }
-    return webcrypto.subtle.sign(algorithm, key, data);
-}
 
-if (typeof crypto === 'undefined') {
-    Object.assign(global, { crypto: webcrypto });
+    // webcrypto calls crypto, which is mocked. We need to restore the original implementation.
+    crypto.subtle.sign = parentSign;
+    const res = crypto.subtle.sign(algorithm, key, data);
+    res.finally(() => {
+        crypto.subtle.sign = mockSign;
+    });
+    return res;
 }
-
 crypto.subtle.sign = mockSign;
+
+const parentImportKey = crypto.subtle.importKey;
+async function mockImportKey(
+    format: KeyFormat,
+    keyData: JsonWebKey | BufferSource,
+    algorithm: AlgorithmIdentifier,
+    extractable: boolean,
+    keyUsages: KeyUsage[],
+): Promise<CryptoKey> {
+    crypto.subtle.importKey = parentImportKey;
+    try {
+        if (format === 'jwk') {
+            return crypto.subtle.importKey(
+                format,
+                keyData as JsonWebKey,
+                algorithm,
+                extractable,
+                keyUsages,
+            );
+        }
+        const data: BufferSource = keyData as BufferSource;
+        if (
+            algorithm === 'RSA-RAW' ||
+            (!(typeof algorithm === 'string') && algorithm.name === 'RSA-RAW')
+        ) {
+            if (typeof algorithm === 'string') {
+                algorithm = { name: 'RSA-PSS' };
+            } else {
+                algorithm = { ...algorithm, name: 'RSA-PSS' };
+            }
+            const key = await crypto.subtle.importKey(
+                format,
+                data,
+                algorithm,
+                extractable,
+                keyUsages,
+            );
+            key.algorithm.name = 'RSA-RAW';
+            return key;
+        }
+        return crypto.subtle.importKey(format, data, algorithm, extractable, keyUsages);
+    } finally {
+        crypto.subtle.importKey = mockImportKey;
+    }
+}
+crypto.subtle.importKey = mockImportKey;
