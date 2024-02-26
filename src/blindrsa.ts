@@ -186,18 +186,21 @@ export class BlindRSA {
         privateKey: CryptoKey,
         blindMsg: Uint8Array,
     ): Promise<Uint8Array> {
-        const algorithmName = privateKey.algorithm.name;
-        privateKey.algorithm.name = BlindRSA.NATIVE_SUPPORT_NAME;
-        try {
-            const signature = await crypto.subtle.sign(
-                { name: BlindRSA.NATIVE_SUPPORT_NAME },
-                privateKey,
-                blindMsg,
+        if (privateKey.algorithm.name !== BlindRSA.NATIVE_SUPPORT_NAME) {
+            privateKey = await crypto.subtle.importKey(
+                'pkcs8',
+                await crypto.subtle.exportKey('pkcs8', privateKey),
+                { ...privateKey.algorithm, name: BlindRSA.NATIVE_SUPPORT_NAME },
+                privateKey.extractable,
+                privateKey.usages,
             );
-            return new Uint8Array(signature);
-        } finally {
-            privateKey.algorithm.name = algorithmName;
         }
+        const signature = await crypto.subtle.sign(
+            { name: privateKey.algorithm.name },
+            privateKey,
+            blindMsg,
+        );
+        return new Uint8Array(signature);
     }
 
     async finalize(
