@@ -1,38 +1,25 @@
+// Copyright (c) 2023 Cloudflare, Inc.
+// Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
+
+import sjcl from './sjcl/index.js';
+import { random_integer_uniform } from './util.js';
+
 export function generatePrime(bitLength: number, options?: { safe: boolean }): bigint {
     const safe = options?.safe ?? false;
+    const kLen = bitLength / 8;
     if (safe) {
         bitLength = bitLength - 1;
     }
 
-    const min = 2n ** BigInt(bitLength - 1);
     const max = 2n ** BigInt(bitLength);
     let prime: bigint;
     do {
-        prime = randomBigIntBetween(min, max);
+        prime = BigInt(random_integer_uniform(new sjcl.bn(max.toString(16)), kLen).toString());
         if (safe) {
             prime = 2n * prime + 1n;
         }
     } while (!isPrime(prime, 20));
     return prime;
-}
-
-function randomBigIntBetween(minInclusive: bigint, maxExclusive: bigint) {
-    const maxInclusive = maxExclusive - minInclusive - BigInt(1);
-    let x = BigInt(1);
-    let y = BigInt(0);
-    // eslint-disable-next-line no-constant-condition
-    while (true) {
-        x = x * BigInt(2);
-        const randomBit = BigInt(Math.random() < 0.5 ? 1 : 0);
-        y = y * BigInt(2) + randomBit;
-        if (x > maxInclusive) {
-            if (y <= maxInclusive) {
-                return y + minInclusive;
-            }
-            x = x - maxInclusive - BigInt(1);
-            y = y - maxInclusive - BigInt(1);
-        }
-    }
 }
 
 function powermod(x: bigint, y: bigint, p: bigint) {

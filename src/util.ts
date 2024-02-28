@@ -269,7 +269,7 @@ export function is_coprime(x: sjcl.bn, n: sjcl.bn): boolean {
 // Generates a random, uniformly distributed integer R between 1 inclusive
 // and N exclusive, i.e., 1 <= R < N.
 export function random_integer_uniform(n: sjcl.bn, kLen: number): sjcl.bn {
-    const MAX_NUM_TRIES = 8;
+    const MAX_NUM_TRIES = 128;
 
     for (let i = 0; i < MAX_NUM_TRIES; i++) {
         const r = os2ip(crypto.getRandomValues(new Uint8Array(kLen)));
@@ -285,7 +285,7 @@ export function random_integer_uniform(n: sjcl.bn, kLen: number): sjcl.bn {
 export function inverseMod(x: sjcl.bn, p: sjcl.bn): sjcl.bn {
     if (!(p.getLimb(0) & 1)) {
         if (!(x.getLimb(0) & 1)) {
-            throw new Error('inverseMod: x must be odd');
+            throw new Error('inverseMod: The given number is not invertible.');
         }
 
         let [old_r, r] = [BigInt(x.toString()), BigInt(p.toString())];
@@ -298,7 +298,7 @@ export function inverseMod(x: sjcl.bn, p: sjcl.bn): sjcl.bn {
         }
 
         if (old_r > 1n) {
-            throw new Error('The given number is not invertible.');
+            throw new Error('inverseMod: The given number is not invertible.');
         }
         if (old_s < 0n) {
             old_s += BigInt(p.toString());

@@ -5,7 +5,7 @@ import { webcrypto } from 'node:crypto';
 
 import { RSABSSA, RSAPBSSA } from '../src/index.js';
 import { blindRSAExample } from './blindrsa.js';
-import { partiallyBlindRSAExample } from './partially-blindrsa.js';
+import { partiallyBlindRSAExample } from './partially_blindrsa.js';
 
 if (typeof crypto === 'undefined') {
     Object.assign(global, { crypto: webcrypto });

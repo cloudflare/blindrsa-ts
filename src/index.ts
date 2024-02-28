@@ -19,12 +19,15 @@ import {
     type BlindRSAParams,
     type BlindRSAPlatformParams,
 } from './blindrsa.js';
-import { PartiallyBlindRSA } from './partially-blindrsa.js';
+import { PartiallyBlindRSA } from './partially_blindrsa.js';
 
 export { BlindRSA, PartiallyBlindRSA, type BlindRSAParams, type BlindRSAPlatformParams };
 
 // Params allows to instantiate the RSABSSA protocol using BlindRSA class
 // with one of the approved variants.
+// Similarly, it allows to instantiate the RSAPBSSA protocol using PartiallyBlindRSA class.
+// BlindRSA variants are defined in the RFC-9474 - https://www.rfc-editor.org/rfc/rfc9474.
+// PartiallyBlindRSA variants are defined in Partially Blind RSA Signature draft 2 - https://datatracker.ietf.org/doc/html/draft-amjad-cfrg-partially-blind-rsa-02
 export const Params: Record<string, BlindRSAParams> = {
     RSABSSA_SHA384_PSS_Randomized: {
         name: 'RSABSSA-SHA384-PSS-Randomized',
