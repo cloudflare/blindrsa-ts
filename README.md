@@ -2,9 +2,9 @@
 
 [![NPM](https://nodei.co/npm/@cloudflare/blindrsa-ts.png)](https://www.npmjs.com/package/@cloudflare/blindrsa-ts)
 
-# blindrsa-ts: A TypeScript Library for the RSA Blind Signature Protocol
+# blindrsa-ts: A TypeScript Library for the RSA (Plain and Partially) Blind Signatures Protocol
 
-**Specification:** Library is compliant with the [RFC-9474](https://www.rfc-editor.org/info/rfc9474) document by IETF/IRTF and matches the provided [tests vectors](https://www.rfc-editor.org/rfc/rfc9474.html#appendix-A).
+**Specification:** Library is compliant with the [RFC-9474](https://www.rfc-editor.org/info/rfc9474) document by IETF/IRTF, with [Partially Blind RSA Signatures Draft 02](https://datatracker.ietf.org/doc/html/draft-amjad-cfrg-partially-blind-rsa-02), and matches the provided [tests vectors](https://www.rfc-editor.org/rfc/rfc9474.html#appendix-A), [resp](https://datatracker.ietf.org/doc/html/draft-amjad-cfrg-partially-blind-rsa-02#name-test-vectors).
 
 
 ### Protocol
@@ -28,11 +28,26 @@ blinded_msg, inv = Blind(pk, input_msg)
 sig = Finalize(pk, input_msg, blind_sig, inv)
 ```
 
+Partially Blinding allows a byte array `info` to be provided, allowing public metadata to be shared.
+
+```js
+ Client(pk, msg, info)          Server(sk, pk, info)
+-------------------------------------------------------
+input_msg = Prepare(msg)
+blind_msg, inv = Blind(pk, input_msg, info)
+                      blind_msg
+                      ---------->
+          blind_sig = BlindSign(sk, blind_msg, info)
+                       blind_sig
+                      <----------
+sig = Finalize(pk, input_msg, info, blind_sig, inv)
+```
+
 ### Usage
 
 #### Variants Supported
 
-This package supports the four variants specified in [RFC9474](https://www.rfc-editor.org/info/rfc9474). Consult [Section 5](https://www.rfc-editor.org/rfc/rfc9474.html#section-5) of the document for the proper usage of each variant in an application.
+This package supports the four variants specified in [RFC9474](https://www.rfc-editor.org/info/rfc9474), resp in [Partially Blind RSA Signatures Draft 02](https://datatracker.ietf.org/doc/html/draft-amjad-cfrg-partially-blind-rsa-02). Consult [Section 5](https://www.rfc-editor.org/rfc/rfc9474.html#section-5) (resp [Section 6](https://datatracker.ietf.org/doc/html/draft-amjad-cfrg-partially-blind-rsa-02#name-rsapbssa-variants)) of the document for the proper usage of each variant in an application.
 
 ```ts
 import { RSABSSA } from "@cloudflare/blindrsa-ts"
@@ -41,6 +56,16 @@ const variants = [
     RSABSSA.SHA384.PSSZero.Randomized,
     RSABSSA.SHA384.PSS.Deterministic,
     RSABSSA.SHA384.PSSZero.Deterministic,
+]
+```
+
+```ts
+import { RSAPBSSA } from "@cloudflare/blindrsa-ts"
+const variants = [
+    RSAPBSSA.SHA384.PSS.Randomized,
+    RSAPBSSA.SHA384.PSSZero.Randomized,
+    RSAPBSSA.SHA384.PSS.Deterministic,
+    RSAPBSSA.SHA384.PSSZero.Deterministic,
 ]
 ```
 
@@ -63,6 +88,10 @@ const { privateKey, publicKey } = await suite.generateKey({
 ```
 
 Server distributes its public key to clients.
+
+#### Partially Blind RSA Signatures consideration
+
+Partially Blind RSA Signatures requires Client and Server to have a byte array `info` shared out-of-band. Where applicable, this byte array has to be provided as a parameter. Please refer to the example provided in [examples/partially_blindrsa.ts](examples/partially_blindrsa.ts) to see usage.
 
 #### Step 1
 

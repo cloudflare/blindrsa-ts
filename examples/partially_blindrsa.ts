@@ -46,7 +46,7 @@ export async function partiallyBlindRSAExample(suite: PartiallyBlindRSA) {
     // the server's blinded signature and the inverse data
     // from the first step.
     //
-    // signature = finalize(publicKey, preparedMsg, blindSignature, inv)
+    // signature = finalize(publicKey, preparedMsg, info, blindSignature, inv)
     const signature = await suite.finalize(publicKey, preparedMsg, info, blindSignature, inv);
     //
     // Step 4: Anyone can verify the signature using the
