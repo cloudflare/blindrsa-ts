@@ -1,86 +1,112 @@
-// Copyright (c) 2023 Cloudflare, Inc.
+// Copyright (c) 2024 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
 import sjcl from './sjcl/index.js';
-import { random_integer_uniform } from './util.js';
 
-export function generatePrime(bitLength: number, options?: { safe: boolean }): bigint {
-    const safe = options?.safe ?? false;
-    const kLen = bitLength / 8;
-    if (safe) {
-        bitLength = bitLength - 1;
-    }
+const SJCL_PARANOIA = 6;
 
-    const max = 2n ** BigInt(bitLength);
-    let prime: bigint;
-    do {
-        prime = BigInt(random_integer_uniform(new sjcl.bn(max.toString(16)), kLen).toString());
-        if (safe) {
-            prime = 2n * prime + 1n;
-        }
-    } while (!isPrime(prime, 20));
-    return prime;
-}
-
-function powermod(x: bigint, y: bigint, p: bigint) {
-    let res = 1n;
-
-    x = x % p;
-    while (y > 0n) {
-        if (y & 1n) {
-            res = (res * x) % p;
-        }
-
-        y = y / 2n;
-        x = (x * x) % p;
-    }
-    return res;
-}
-
-function millerTest(n: bigint) {
-    let d = n - 1n;
-    while (d % 2n == 0n) {
-        d /= 2n;
-    }
-    const r = BigInt(Math.floor(Math.random() * 100_000));
-    const y = (r * (n - 2n)) / 100_000n;
-    const a = 2n + (y % (n - 4n));
-
-    let x = powermod(a, d, n);
-
-    if (x == 1n || x == n - 1n) {
-        return true;
-    }
-
-    while (d != n - 1n) {
-        x = (x * x) % n;
-        d *= 2n;
-
-        if (x == 1n) {
-            return false;
-        }
-        if (x == n - 1n) {
-            return true;
-        }
-    }
-
-    return false;
-}
-
-function isPrime(n: bigint, k = 20) {
-    if (n <= 1n || n == 4n) {
+// Miller-Rabin probabilistic primality test.
+// Algorithm 4.24 of Handbook Applied Cryptography.
+// https://cacr.uwaterloo.ca/hac/about/chap4.pdf
+function millerRabinTest(n: sjcl.bn, SEC_PARAM = 20): boolean {
+    if (n.equals(1)) {
         return false;
     }
-    if (n <= 3n) {
+    if (n.equals(2) || n.equals(3)) {
         return true;
     }
+    if ((n.getLimb(0) & 0x1) === 0) {
+        return false;
+    }
 
-    // Iterate given nber of 'k' times
-    for (let i = 0; i < k; i++) {
-        if (!millerTest(n)) {
-            return false;
+    const nMinusOne = new sjcl.bn(n).sub(1).normalize();
+    let r = new sjcl.bn(nMinusOne);
+    let s = 0;
+
+    while ((r.getLimb(0) & 0x1) === 0) {
+        r = r.halveM();
+        s++;
+    }
+
+    for (let i = 0; i < SEC_PARAM; i++) {
+        const a = sjcl.bn.random(nMinusOne, SJCL_PARANOIA);
+        let y = a.powermod(r, n);
+        if (!y.equals(1) && !y.equals(nMinusOne)) {
+            let j = 1;
+            while (j < s && !y.equals(nMinusOne)) {
+                y = y.mulmod(y, n);
+                if (y.equals(1)) {
+                    return false;
+                }
+                j++;
+            }
+            if (!y.equals(nMinusOne)) {
+                return false;
+            }
         }
     }
 
     return true;
+}
+
+export const isPrime = millerRabinTest;
+
+export function isSafePrime(n: sjcl.bn, SEC_PARAM = 20): boolean {
+    const nDivTwo = new sjcl.bn(n).halveM().normalize();
+    return isPrime(n, SEC_PARAM) && isPrime(nDivTwo, SEC_PARAM);
+}
+
+// Brute-force prime search using Miller-Rabin test oracle.
+// https://en.wikipedia.org/wiki/Miller%E2%80%93Rabin_primality_test#Generation_of_probable_primes
+export function generatePrime(bitLength: number, NUM_TRIES_PRIMALITY = 20): sjcl.bn {
+    // NUM_TRIES is O(k*b^4) in the worst case,
+    // where:
+    //   k is the Miller-Rabin primality test parameter,
+    //   b is the bit length requested.
+    const MAX_NUM_TRIES = NUM_TRIES_PRIMALITY * bitLength ** 4;
+
+    // 2^b
+    const twoToN = new sjcl.bn(2);
+    for (let i = 0; i < bitLength; i++) {
+        twoToN.doubleM();
+    }
+    twoToN.normalize();
+
+    let prime: sjcl.bn;
+    let i = 0;
+
+    do {
+        prime = sjcl.bn.random(twoToN, SJCL_PARANOIA);
+        if ((prime.getLimb(0) & 0x1) == 0) {
+            prime = prime.addM(1).normalize();
+        }
+        i++;
+    } while (!millerRabinTest(prime, NUM_TRIES_PRIMALITY) && i < MAX_NUM_TRIES);
+
+    if (i === MAX_NUM_TRIES) {
+        throw new Error(`generatePrime reached MAX_NUM_TRIES=${MAX_NUM_TRIES}`);
+    }
+
+    return prime;
+}
+
+// Brute-force safe prime search using Miller-Rabin test oracle.
+// Returns p=2*q+1 such that both p and q are prime numbers.
+export function generateSafePrime(bitLength: number, NUM_TRIES_PRIMALITY = 20): sjcl.bn {
+    const MAX_NUM_TRIES = bitLength ** 2;
+    const ONE = new sjcl.bn(1);
+    let prime: sjcl.bn;
+    let i = 0;
+
+    do {
+        const q = generatePrime(bitLength - 1, NUM_TRIES_PRIMALITY);
+        prime = q.doubleM().addM(ONE).normalize();
+        i++;
+    } while (!millerRabinTest(prime, NUM_TRIES_PRIMALITY) && i < MAX_NUM_TRIES);
+
+    if (i === MAX_NUM_TRIES) {
+        throw new Error(`generateSafePrime reached MAX_NUM_TRIES=${MAX_NUM_TRIES}`);
+    }
+
+    return prime;
 }
