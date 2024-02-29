@@ -1,10 +1,12 @@
 // Copyright (c) 2023 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import { jest } from '@jest/globals';
 import sjcl from '../src/sjcl/index.js';
+import { jest } from '@jest/globals';
+
 import { i2osp } from '../src/util.js';
 import { PartiallyBlindRSA, RSAPBSSA, getSuiteByName } from '../src/index.js';
+import { isSafePrime } from '../src/prime.js';
 
 // Test vectors
 // https://datatracker.ietf.org/doc/html/draft-amjad-cfrg-partially-blind-rsa-02#name-test-vectors
@@ -137,6 +139,16 @@ describe.each(vectors)('Errors-vec$#', (v: Vector) => {
             errorMsg,
         );
     });
+});
+
+test.each(vectors)('TestVector_$#/safePrimes', (v: Vector) => {
+    // It requires to seed the internal random number generator.
+    while (sjcl.random.isReady(undefined) === 0) {
+        sjcl.random.addEntropy(crypto.getRandomValues(new Uint32Array(4)), 128, undefined);
+    }
+
+    expect(isSafePrime(new sjcl.bn(v.p))).toBe(true);
+    expect(isSafePrime(new sjcl.bn(v.q))).toBe(true);
 });
 
 describe.each(vectors)('TestVector_$#', (v: Vector) => {

@@ -2,7 +2,6 @@
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
 import sjcl from './sjcl/index.js';
-import { generatePrime } from './prime.js';
 
 export function assertNever(name: string, x: unknown): never {
     throw new Error(`unexpected ${name} identifier: ${x}`);
@@ -306,13 +305,6 @@ export function inverseMod(x: sjcl.bn, p: sjcl.bn): sjcl.bn {
         return new sjcl.bn(old_s.toString(16));
     }
     return x.inverseMod(p);
-}
-
-export async function generateSafePrime(bitLength: number): Promise<sjcl.bn> {
-    return new Promise((resolve) => {
-        const prime = generatePrime(bitLength, { safe: true });
-        resolve(new sjcl.bn(prime.toString(16)));
-    });
 }
 
 export type BigPublicKey = { e: sjcl.bn; n: sjcl.bn };

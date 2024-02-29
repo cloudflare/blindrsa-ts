@@ -2,6 +2,8 @@
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
 import sjcl from './sjcl/index.js';
+
+import { generateSafePrime } from './prime.js';
 import {
     assertNever,
     emsa_pss_encode,
@@ -17,7 +19,6 @@ import {
     type BigSecretKey,
     type BigKeyPair,
     inverseMod,
-    generateSafePrime,
 } from './util.js';
 
 export enum PrepareType {
@@ -272,16 +273,20 @@ export class PartiallyBlindRSA {
     static async generateKey(
         algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
     ): Promise<CryptoKeyPair> {
+        // It requires to seed the internal random number generator.
+        while (sjcl.random.isReady(undefined) === 0) {
+            const buffer = crypto.getRandomValues(new Uint32Array(4));
+            sjcl.random.addEntropy(buffer, 128, undefined);
+        }
+
         // 1. p = SafePrime(bits / 2)
         // 2. q = SafePrime(bits / 2)
         // 3. while p == q, go to step 2.
         let p: sjcl.bn;
         let q: sjcl.bn;
         do {
-            [p, q] = await Promise.all([
-                generateSafePrime(algorithm.modulusLength / 2),
-                generateSafePrime(algorithm.modulusLength / 2),
-            ]);
+            p = generateSafePrime(algorithm.modulusLength >> 1);
+            q = generateSafePrime(algorithm.modulusLength >> 1);
         } while (p.equals(q));
 
         // 4. phi = (p - 1) * (q - 1)

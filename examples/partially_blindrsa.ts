@@ -1,4 +1,4 @@
-// Copyright (c) 2023 Cloudflare, Inc.
+// Copyright (c) 2024 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
 import type { PartiallyBlindRSA } from '../src/index.js';
@@ -8,7 +8,7 @@ export async function partiallyBlindRSAExample(suite: PartiallyBlindRSA) {
     // Setup: Generate server keypair.
     const { privateKey, publicKey } = await suite.generateKey({
         publicExponent: Uint8Array.from([1, 0, 1]),
-        modulusLength: 2048,
+        modulusLength: 512, // [WARNING:] replace modulusLength with a secure number >= 2048.
     });
 
     // Client                                       Server
