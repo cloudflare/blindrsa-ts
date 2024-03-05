@@ -17,10 +17,15 @@ async function examples() {
     await blindRSAExample(RSABSSA.SHA384.PSS.Deterministic());
     await blindRSAExample(RSABSSA.SHA384.PSSZero.Deterministic());
 
-    await partiallyBlindRSAExample(RSAPBSSA.SHA384.PSS.Randomized());
-    await partiallyBlindRSAExample(RSAPBSSA.SHA384.PSSZero.Randomized());
-    await partiallyBlindRSAExample(RSAPBSSA.SHA384.PSS.Deterministic());
-    await partiallyBlindRSAExample(RSAPBSSA.SHA384.PSSZero.Deterministic());
+    /* eslint-disable prettier/prettier */
+    // Use pre-generated keys for the partially blind RSA example.
+    // Key generation requires generating safe prime number, which is slow.
+    // The library provides generateKeys method for completeness, but we advice against using it in production.
+    await partiallyBlindRSAExample(RSAPBSSA.SHA384.PSS.Randomized(), { usePreGeneratedKeys: true });
+    await partiallyBlindRSAExample(RSAPBSSA.SHA384.PSSZero.Randomized(), { usePreGeneratedKeys: true });
+    await partiallyBlindRSAExample(RSAPBSSA.SHA384.PSS.Deterministic(), { usePreGeneratedKeys: true });
+    await partiallyBlindRSAExample(RSAPBSSA.SHA384.PSSZero.Deterministic(), { usePreGeneratedKeys: true });
+    /* eslint-enable prettier/prettier */
 }
 
 examples().catch((e: Error) => {
