@@ -10,6 +10,7 @@ import {
     joinAll,
     os2ip,
     random_integer_uniform,
+    rsaRawBlingSign,
     rsasp1,
     rsavp1,
 } from './util.js';
@@ -34,7 +35,6 @@ export interface BlindRSAPlatformParams {
 
 export class BlindRSA {
     private static readonly NAME = 'RSA-PSS';
-    private static readonly NATIVE_SUPPORT_NAME = 'RSA-RAW';
 
     constructor(public readonly params: BlindRSAParams & BlindRSAPlatformParams) {
         switch (params.prepareType) {
@@ -148,7 +148,7 @@ export class BlindRSA {
 
     async blindSign(privateKey: CryptoKey, blindMsg: Uint8Array): Promise<Uint8Array> {
         if (this.params.supportsRSARAW) {
-            return this.rsaRawBlingSign(privateKey, blindMsg);
+            return rsaRawBlingSign(privateKey, blindMsg);
         }
         const { jwkKey, modulusLengthBytes: kLen } = await this.extractKeyParams(
             privateKey,
@@ -180,27 +180,6 @@ export class BlindRSA {
         // 5. blind_sig = int_to_bytes(s, kLen)
         // 6. output blind_sig
         return i2osp(s, kLen);
-    }
-
-    private async rsaRawBlingSign(
-        privateKey: CryptoKey,
-        blindMsg: Uint8Array,
-    ): Promise<Uint8Array> {
-        if (privateKey.algorithm.name !== BlindRSA.NATIVE_SUPPORT_NAME) {
-            privateKey = await crypto.subtle.importKey(
-                'pkcs8',
-                await crypto.subtle.exportKey('pkcs8', privateKey),
-                { ...privateKey.algorithm, name: BlindRSA.NATIVE_SUPPORT_NAME },
-                privateKey.extractable,
-                privateKey.usages,
-            );
-        }
-        const signature = await crypto.subtle.sign(
-            { name: privateKey.algorithm.name },
-            privateKey,
-            blindMsg,
-        );
-        return new Uint8Array(signature);
     }
 
     async finalize(

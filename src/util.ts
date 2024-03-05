@@ -307,6 +307,29 @@ export function inverseMod(x: sjcl.bn, p: sjcl.bn): sjcl.bn {
     return x.inverseMod(p);
 }
 
+export const NATIVE_SUPPORT_NAME = 'RSA-RAW';
+
+export async function rsaRawBlingSign(
+    privateKey: CryptoKey,
+    blindMsg: Uint8Array,
+): Promise<Uint8Array> {
+    if (privateKey.algorithm.name !== NATIVE_SUPPORT_NAME) {
+        privateKey = await crypto.subtle.importKey(
+            'pkcs8',
+            await crypto.subtle.exportKey('pkcs8', privateKey),
+            { ...privateKey.algorithm, name: NATIVE_SUPPORT_NAME },
+            privateKey.extractable,
+            privateKey.usages,
+        );
+    }
+    const signature = await crypto.subtle.sign(
+        { name: privateKey.algorithm.name },
+        privateKey,
+        blindMsg,
+    );
+    return new Uint8Array(signature);
+}
+
 export type BigPublicKey = { e: sjcl.bn; n: sjcl.bn };
 
 export type BigSecretKey = { d: sjcl.bn; n: sjcl.bn; p: sjcl.bn; q: sjcl.bn };

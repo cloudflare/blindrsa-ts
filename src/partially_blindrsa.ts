@@ -19,7 +19,9 @@ import {
     type BigSecretKey,
     type BigKeyPair,
     inverseMod,
+    rsaRawBlingSign,
 } from './util.js';
+import type { BlindRSAParams, BlindRSAPlatformParams } from './blindrsa.js';
 
 export enum PrepareType {
     Deterministic = 0,
@@ -28,17 +30,14 @@ export enum PrepareType {
 
 export type BlindOutput = { blindedMsg: Uint8Array; inv: Uint8Array };
 
-export interface BlindRSAParams {
-    name: string;
-    hash: string;
-    saltLength: number;
-    prepareType: PrepareType;
-}
+export interface PartiallyBlindRSAParams extends BlindRSAParams {}
+
+export interface PartiallyBlindRSAPlatformParams extends BlindRSAPlatformParams {}
 
 export class PartiallyBlindRSA {
     private static readonly NAME = 'RSA-PSS';
 
-    constructor(public readonly params: BlindRSAParams) {
+    constructor(public readonly params: PartiallyBlindRSAParams & PartiallyBlindRSAPlatformParams) {
         switch (params.prepareType) {
             case PrepareType.Deterministic:
             case PrepareType.Randomized:
@@ -182,6 +181,19 @@ export class PartiallyBlindRSA {
         // 2. sk_derived, pk_derived = DeriveKeyPair(sk, info)
         const { secretKey: sk_derived, publicKey: pk_derived } = await this.deriveKeyPair(sk, info);
 
+        if (this.params.supportsRSARAW) {
+            const { privateKey } = await PartiallyBlindRSA.bigKeyPairToCryptoKeyPair(
+                { secretKey: sk_derived, publicKey: pk_derived },
+                {
+                    modulusLength: kLen * 8,
+                    publicExponent: new Uint8Array([1, 0, 1]),
+                    hash: this.params.hash,
+                },
+                true,
+            );
+            return rsaRawBlingSign(privateKey, blindMsg);
+        }
+
         // 3. s = RSASP1(sk_derived, m)
         const s = rsasp1(sk_derived, m);
 
@@ -308,46 +320,18 @@ export class PartiallyBlindRSA {
         const n = p.mul(q);
 
         // 7. sk = (n, p, q, phi, d)
-        const dp = d.mod(p.sub(1));
-        const dq = d.mod(q.sub(1));
-        const qi = q.inverseMod(p);
-        const sk = await crypto.subtle.importKey(
-            'jwk',
-            {
-                alg: 'PS384',
-                ext: true,
-                key_ops: ['sign'],
-                kty: 'RSA',
-                n: sjcl.codec.base64url.fromBits(n.toBits(0)),
-                e: sjcl.codec.base64url.fromBits(e.toBits(0)),
-                p: sjcl.codec.base64url.fromBits(p.toBits(0)),
-                q: sjcl.codec.base64url.fromBits(q.toBits(0)),
-                d: sjcl.codec.base64url.fromBits(d.toBits(0)),
-                dp: sjcl.codec.base64url.fromBits(dp.toBits(0)),
-                dq: sjcl.codec.base64url.fromBits(dq.toBits(0)),
-                qi: sjcl.codec.base64url.fromBits(qi.toBits(0)),
-            },
-            { ...algorithm, name: PartiallyBlindRSA.NAME },
-            true,
-            ['sign'],
-        );
+        const sk: BigSecretKey = { n, p, q, d };
         // 8. pk = (n, e)
-        const pk = await crypto.subtle.importKey(
-            'jwk',
-            {
-                alg: 'PS384',
-                ext: true,
-                key_ops: ['verify'],
-                kty: 'RSA',
-                n: sjcl.codec.base64url.fromBits(n.toBits(0)),
-                e: sjcl.codec.base64url.fromBits(e.toBits(0)),
-            },
-            { ...algorithm, name: PartiallyBlindRSA.NAME },
-            true,
-            ['verify'],
-        );
+        const pk: BigPublicKey = { e, n };
         // 9. output (sk, pk)
-        return { privateKey: sk, publicKey: pk };
+        return PartiallyBlindRSA.bigKeyPairToCryptoKeyPair(
+            {
+                secretKey: sk,
+                publicKey: pk,
+            },
+            algorithm,
+            true,
+        );
     }
 
     generateKey(
@@ -451,5 +435,55 @@ export class PartiallyBlindRSA {
 
         // 4. pk_derived = (n, e')
         return { secretKey: sk_derived, publicKey: pk_derived };
+    }
+
+    private static async bigKeyPairToCryptoKeyPair(
+        { secretKey, publicKey }: BigKeyPair,
+        algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
+        extractable: boolean,
+    ): Promise<CryptoKeyPair> {
+        const n = secretKey.n;
+        const e = publicKey.e;
+        const p = secretKey.p;
+        const q = secretKey.q;
+        const d = secretKey.d;
+        const dp = d.mod(p.sub(1));
+        const dq = d.mod(q.sub(1));
+        const qi = q.inverseMod(p);
+        const sk = await crypto.subtle.importKey(
+            'jwk',
+            {
+                alg: 'PS384',
+                ext: extractable,
+                key_ops: ['sign'],
+                kty: 'RSA',
+                n: sjcl.codec.base64url.fromBits(n.toBits(0)),
+                e: sjcl.codec.base64url.fromBits(e.toBits(0)),
+                p: sjcl.codec.base64url.fromBits(p.toBits(0)),
+                q: sjcl.codec.base64url.fromBits(q.toBits(0)),
+                d: sjcl.codec.base64url.fromBits(d.toBits(0)),
+                dp: sjcl.codec.base64url.fromBits(dp.toBits(0)),
+                dq: sjcl.codec.base64url.fromBits(dq.toBits(0)),
+                qi: sjcl.codec.base64url.fromBits(qi.toBits(0)),
+            },
+            { ...algorithm, name: PartiallyBlindRSA.NAME },
+            extractable,
+            ['sign'],
+        );
+        const pk = await crypto.subtle.importKey(
+            'jwk',
+            {
+                alg: 'PS384',
+                ext: extractable,
+                key_ops: ['verify'],
+                kty: 'RSA',
+                n: sjcl.codec.base64url.fromBits(n.toBits(0)),
+                e: sjcl.codec.base64url.fromBits(e.toBits(0)),
+            },
+            { ...algorithm, name: PartiallyBlindRSA.NAME },
+            extractable,
+            ['verify'],
+        );
+        return { privateKey: sk, publicKey: pk };
     }
 }
