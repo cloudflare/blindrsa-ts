@@ -19,7 +19,7 @@ import {
     type BlindRSAParams,
     type BlindRSAPlatformParams,
 } from './blindrsa.js';
-import { PartiallyBlindRSA } from './partially_blindrsa.js';
+import { PartiallyBlindRSA, type PartiallyBlindRSAPlatformParams } from './partially_blindrsa.js';
 
 export { BlindRSA, PartiallyBlindRSA, type BlindRSAParams, type BlindRSAPlatformParams };
 
@@ -108,15 +108,15 @@ export const RSAPBSSA = {
         ): Promise<CryptoKeyPair> =>
             PartiallyBlindRSA.generateKey({ ...algorithm, hash: 'SHA-384' }),
         PSS: {
-            Randomized: (params: BlindRSAPlatformParams = { supportsRSARAW: false }) =>
+            Randomized: (params: PartiallyBlindRSAPlatformParams = { supportsRSARAW: false }) =>
                 new PartiallyBlindRSA({ ...Params.RSAPBSSA_SHA384_PSS_Randomized, ...params }),
-            Deterministic: (params: BlindRSAPlatformParams = { supportsRSARAW: false }) =>
+            Deterministic: (params: PartiallyBlindRSAPlatformParams = { supportsRSARAW: false }) =>
                 new PartiallyBlindRSA({ ...Params.RSAPBSSA_SHA384_PSS_Deterministic, ...params }),
         },
         PSSZero: {
-            Randomized: (params: BlindRSAPlatformParams = { supportsRSARAW: false }) =>
+            Randomized: (params: PartiallyBlindRSAPlatformParams = { supportsRSARAW: false }) =>
                 new PartiallyBlindRSA({ ...Params.RSAPBSSA_SHA384_PSSZERO_Randomized, ...params }),
-            Deterministic: (params: BlindRSAPlatformParams = { supportsRSARAW: false }) =>
+            Deterministic: (params: PartiallyBlindRSAPlatformParams = { supportsRSARAW: false }) =>
                 new PartiallyBlindRSA({
                     ...Params.RSAPBSSA_SHA384_PSSZERO_Deterministic,
                     ...params,
