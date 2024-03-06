@@ -1,6 +1,7 @@
 // Copyright (c) 2024 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 import sjcl from '../src/sjcl/index.js';
+import { generatePrimeSync } from 'node:crypto';
 
 import type { PartiallyBlindRSA } from '../src/index.js';
 
@@ -51,24 +52,36 @@ async function preGeneratedKeys(extractable: boolean): Promise<CryptoKeyPair> {
     return { privateKey, publicKey };
 }
 
-function loadKeys(suite: PartiallyBlindRSA, preGenerated = false): Promise<CryptoKeyPair> {
-    if (preGenerated) {
-        return preGeneratedKeys(true);
-    } else {
-        return suite.generateKey({
-            publicExponent: Uint8Array.from([1, 0, 1]),
-            modulusLength: 2048, // [WARNING:] while this can be slow, DO NOT replace modulusLength a number below 2048. This would make your cryptography insecure.
-        });
+enum PrepareType {
+    PreGenerated,
+    Node,
+    BuiltIn,
+}
+
+function loadKeys(suite: PartiallyBlindRSA, prepare: PrepareType): Promise<CryptoKeyPair> {
+    const algorithm = {
+        publicExponent: Uint8Array.from([1, 0, 1]),
+        modulusLength: 2048, // [WARNING:] while this can be slow, DO NOT replace modulusLength a number below 2048. This would make your cryptography insecure.
+    };
+    switch (prepare) {
+        case PrepareType.PreGenerated:
+            return preGeneratedKeys(true);
+        case PrepareType.Node:
+            return suite.generateKey(algorithm, (length: number) =>
+                generatePrimeSync(length, { safe: true, bigint: true }),
+            );
+        case PrepareType.BuiltIn:
+            return suite.generateKey(algorithm);
     }
 }
 
 // Example: PartiallyBlindRSA protocol execution.
 export async function partiallyBlindRSAExample(suite: PartiallyBlindRSA) {
     // Setup: Generate server keypair.
-    // Use pre-generated keys for the partially blind RSA example.
+    // Use node crypto library to generate safe prime.
     // Key generation requires generating safe prime number, which is slow.
     // The library provides generateKeys method for completeness, but we advice against using it in production.
-    const { privateKey, publicKey } = await loadKeys(suite, true);
+    const { privateKey, publicKey } = await loadKeys(suite, PrepareType.Node);
 
     // Client                                       Server
     // ====================================================
