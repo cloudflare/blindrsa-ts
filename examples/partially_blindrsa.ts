@@ -51,22 +51,24 @@ async function preGeneratedKeys(extractable: boolean): Promise<CryptoKeyPair> {
     return { privateKey, publicKey };
 }
 
-// Example: PartiallyBlindRSA protocol execution.
-export async function partiallyBlindRSAExample(
-    suite: PartiallyBlindRSA,
-    options = { usePreGeneratedKeys: false },
-) {
-    // Setup: Generate server keypair.
-    let keypair: CryptoKeyPair;
-    if (options.usePreGeneratedKeys) {
-        keypair = await preGeneratedKeys(true);
+function loadKeys(suite: PartiallyBlindRSA, preGenerated = false): Promise<CryptoKeyPair> {
+    if (preGenerated) {
+        return preGeneratedKeys(true);
     } else {
-        keypair = await suite.generateKey({
+        return suite.generateKey({
             publicExponent: Uint8Array.from([1, 0, 1]),
             modulusLength: 2048, // [WARNING:] while this can be slow, DO NOT replace modulusLength a number below 2048. This would make your cryptography insecure.
         });
     }
-    const { publicKey, privateKey } = keypair;
+}
+
+// Example: PartiallyBlindRSA protocol execution.
+export async function partiallyBlindRSAExample(suite: PartiallyBlindRSA) {
+    // Setup: Generate server keypair.
+    // Use pre-generated keys for the partially blind RSA example.
+    // Key generation requires generating safe prime number, which is slow.
+    // The library provides generateKeys method for completeness, but we advice against using it in production.
+    const { privateKey, publicKey } = await loadKeys(suite, true);
 
     // Client                                       Server
     // ====================================================
