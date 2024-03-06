@@ -284,6 +284,7 @@ export class PartiallyBlindRSA {
 
     static async generateKey(
         algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
+        generateSafePrimeSync: (length: number) => sjcl.bn | bigint = generateSafePrime,
     ): Promise<CryptoKeyPair> {
         // It requires to seed the internal random number generator.
         while (sjcl.random.isReady(undefined) === 0) {
@@ -297,8 +298,10 @@ export class PartiallyBlindRSA {
         let p: sjcl.bn;
         let q: sjcl.bn;
         do {
-            p = generateSafePrime(algorithm.modulusLength >> 1);
-            q = generateSafePrime(algorithm.modulusLength >> 1);
+            const p_tmp = generateSafePrimeSync(algorithm.modulusLength >> 1);
+            const q_tmp = generateSafePrimeSync(algorithm.modulusLength >> 1);
+            p = typeof p_tmp === 'bigint' ? new sjcl.bn(p_tmp.toString(16)) : p_tmp;
+            q = typeof q_tmp === 'bigint' ? new sjcl.bn(q_tmp.toString(16)) : q_tmp;
         } while (p.equals(q));
 
         // 4. phi = (p - 1) * (q - 1)
@@ -336,8 +339,12 @@ export class PartiallyBlindRSA {
 
     generateKey(
         algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent'>,
+        generateSafePrimeSync: (length: number) => sjcl.bn | bigint = generateSafePrime,
     ): Promise<CryptoKeyPair> {
-        return PartiallyBlindRSA.generateKey({ ...algorithm, hash: this.params.hash });
+        return PartiallyBlindRSA.generateKey(
+            { ...algorithm, hash: this.params.hash },
+            generateSafePrimeSync,
+        );
     }
 
     async verify(
