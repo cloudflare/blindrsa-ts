@@ -135,7 +135,7 @@ describe.each(vectors)('Errors-vec$#', (v: Vector) => {
         const blindRSA = RSAPBSSA.SHA384.PSS.Randomized();
         await expect(blindRSA.blind(publicKey, msg, info)).rejects.toThrow(errorMsg);
         await expect(blindRSA.blindSign(privateKey, blindedMsg, info)).rejects.toThrow(errorMsg);
-        await expect(blindRSA.finalize(publicKey, msg, blindedSig, inv, info)).rejects.toThrow(
+        await expect(blindRSA.finalize(publicKey, msg, info, blindedSig, inv)).rejects.toThrow(
             errorMsg,
         );
     });
