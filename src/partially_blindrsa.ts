@@ -150,10 +150,10 @@ export class PartiallyBlindRSA {
         // 12. z = m * x mod n
         const z = m.mulmod(x, n);
 
-        // 13. blinded_msg = int_to_bytes(z, modulus_len)
+        // 13. blind_msg = int_to_bytes(z, modulus_len)
         const blindedMsg = i2osp(z, kLen);
 
-        // 14. output blinded_msg, inv
+        // 14. output blind_msg, inv
         return { blindedMsg, inv };
     }
 
@@ -175,7 +175,7 @@ export class PartiallyBlindRSA {
         const q = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.q));
         const sk: BigSecretKey = { n, d, p, q };
 
-        // 1. m = bytes_to_int(blinded_msg)
+        // 1. m = bytes_to_int(blind_msg)
         const m = os2ip(blindMsg);
 
         // 2. sk_derived, pk_derived = DeriveKeyPair(sk, info)

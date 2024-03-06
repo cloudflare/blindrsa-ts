@@ -42,7 +42,7 @@ function paramsFromVector(v: Vector): {
     dq: string;
     qi: string;
 } {
-    const n = hexNumToB64URL(v.N);
+    const n = hexNumToB64URL(v.n);
     const e = hexNumToB64URL(v.e);
     const d = hexNumToB64URL(v.d);
     const p = hexNumToB64URL(v.p);
@@ -153,7 +153,7 @@ test.each(vectors)('TestVector_$#/safePrimes', (v: Vector) => {
 
 describe.each(vectors)('TestVector_$#', (v: Vector) => {
     beforeEach(() => {
-        const n = new sjcl.bn(v.N);
+        const n = new sjcl.bn(v.n);
         const kLen = Math.ceil(n.bitLength() / 8);
         const r = new sjcl.bn(v.r);
         const rBytes = i2osp(r, kLen);
@@ -180,10 +180,10 @@ describe.each(vectors)('TestVector_$#', (v: Vector) => {
                 const { publicKey, privateKey } = await keysFromVector(v, true);
 
                 const { blindedMsg, inv } = await blindRSA.blind(publicKey, inputMsg, info);
-                expect(uint8ToHex(blindedMsg)).toBe(v.blinded_msg);
+                expect(uint8ToHex(blindedMsg)).toBe(v.blind_msg);
 
                 const blindedSig = await blindRSA.blindSign(privateKey, blindedMsg, info);
-                expect(uint8ToHex(blindedSig)).toBe(v.blinded_sig);
+                expect(uint8ToHex(blindedSig)).toBe(v.blind_sig);
 
                 const signature = await blindRSA.finalize(
                     publicKey,
