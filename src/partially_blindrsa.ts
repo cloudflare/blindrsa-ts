@@ -80,7 +80,7 @@ export class PartiallyBlindRSA {
 
         const { modulusLength: modulusLengthBits, hash: hashFn } =
             key.algorithm as RsaHashedKeyGenParams;
-        const modulusLengthBytes = Math.ceil(modulusLengthBits / 8);
+        const modulusLengthBytes = Math.ceil(modulusLengthBits >> 3);
         const hash = (hashFn as Algorithm).name;
         if (hash.toLowerCase() !== this.params.hash.toLowerCase()) {
             throw new Error(`hash is not ${this.params.hash}`);
@@ -313,7 +313,7 @@ export class PartiallyBlindRSA {
         );
 
         // 6. d = inverse_mod(e, phi)
-        // phi = (p-1)(q-1) = pq - p - q + 1 = n - p - q + 1
+        // TODO: replace this applying Chinese Remainder Theorem.
         const d = inverseMod(e, phi);
 
         // 7. n = p * q
@@ -385,14 +385,17 @@ export class PartiallyBlindRSA {
         );
     }
 
-    private async derivePublicKey({ n }: BigPublicKey, info: Uint8Array): Promise<BigPublicKey> {
+    private async derivePublicKey(
+        { n }: Pick<BigPublicKey, 'n'>,
+        info: Uint8Array,
+    ): Promise<BigPublicKey> {
         // 1. hkdf_input = concat("key", info, 0x00)
         // 2. hkdf_salt = int_to_bytes(n, modulus_len)
         // 3. lambda_len = modulus_len / 2
         // 4. hkdf_len = lambda_len + 16
         const hkdf_input = joinAll([new TextEncoder().encode('key'), info, new Uint8Array([0x00])]);
-        const hkdf_salt = i2osp(n, n.bitLength() / 8);
-        const lambda_len = n.bitLength() / 8 / 2;
+        const hkdf_salt = i2osp(n, n.bitLength() >> 3);
+        const lambda_len = n.bitLength() >> 4;
         const hkdf_len = lambda_len + 16;
 
         // 5. expanded_bytes = HKDF(IKM=hkdf_input, salt=hkdf_salt, info="PBRSA", L=hkdf_len)
@@ -414,7 +417,7 @@ export class PartiallyBlindRSA {
         expanded_bytes[0] &= 0x3f;
         expanded_bytes[lambda_len - 1] |= 0x01;
 
-        // 8. e' = bytes_to_int(slice(expanded_bytes, lambda_len))
+        // 8. e' = bytes_to_int(slice(expanded_bytes, 0, lambda_len))
         // 9. output pk_derived = (n, e')
         const e_prime = os2ip(expanded_bytes.slice(0, lambda_len));
         return { e: e_prime, n };
@@ -425,9 +428,10 @@ export class PartiallyBlindRSA {
         const phi = new sjcl.bn(sk.p).sub(1).mul(new sjcl.bn(sk.q).sub(1));
 
         // 1. (n, e') = DerivePublicKey(n, info)
-        const pk_derived = await this.derivePublicKey({ n: sk.n, e: new sjcl.bn(0) }, info);
+        const pk_derived = await this.derivePublicKey({ n: sk.n }, info);
 
         // 2. d' = inverse_mod(e', phi)
+        // TODO: replace this applying Chinese Remainder Theorem.
         const d_prime = inverseMod(pk_derived.e, phi);
 
         // 3. sk_derived = (n, p, q, phi, d')

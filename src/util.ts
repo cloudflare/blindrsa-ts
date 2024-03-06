@@ -60,7 +60,7 @@ export function joinAll(a: Uint8Array[]): Uint8Array {
 
 export function xor(a: Uint8Array, b: Uint8Array): Uint8Array {
     if (a.length !== b.length || a.length === 0) {
-        throw new Error('arrays of different length' + a.length + ' - ' + b.length);
+        throw new Error('arrays of different length: ' + a.length + ' - ' + b.length);
     }
     const n = a.length;
     const c = new Uint8Array(n);
@@ -281,6 +281,8 @@ export function random_integer_uniform(n: sjcl.bn, kLen: number): sjcl.bn {
 }
 
 // implement inverseMod for sjcl.bn where p is even
+// taken from wikipedia pseudocode for the extended euclidian algorithm
+// ref https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Pseudocode
 export function inverseMod(x: sjcl.bn, p: sjcl.bn): sjcl.bn {
     if (!(p.getLimb(0) & 1)) {
         if (!(x.getLimb(0) & 1)) {

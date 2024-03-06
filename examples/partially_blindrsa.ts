@@ -110,7 +110,7 @@ export async function partiallyBlindRSAExample(
     // server's public key.
     const isValid = await suite.verify(publicKey, signature, preparedMsg, info);
 
-    console.log(`Example Partially BlindRSA - Suite: ${suite}`);
+    console.log(`Example Partially Blind RSA - Suite: ${suite}`);
     console.log(`input_msg: (${msgString.length} bytes): ${msgString}`);
     console.log(`input_info: (${infoString.length} bytes): ${infoString}`);
     console.log(
