@@ -147,9 +147,6 @@ export class BlindRSA {
     }
 
     async blindSign(privateKey: CryptoKey, blindMsg: Uint8Array): Promise<Uint8Array> {
-        if (this.params.supportsRSARAW) {
-            return rsaRawBlingSign(privateKey, blindMsg);
-        }
         const { jwkKey, modulusLengthBytes: kLen } = await this.extractKeyParams(
             privateKey,
             'private',
@@ -167,7 +164,12 @@ export class BlindRSA {
         const m = os2ip(blindMsg);
 
         // 2. s = RSASP1(sk, m)
-        const s = rsasp1(sk, m);
+        let s: sjcl.bn;
+        if (this.params.supportsRSARAW) {
+            s = await rsaRawBlingSign(privateKey, blindMsg);
+        } else {
+            s = rsasp1(sk, m);
+        }
 
         // 3. m' = RSAVP1(pk, s)
         const mp = rsavp1(pk, s);

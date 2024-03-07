@@ -181,6 +181,8 @@ export class PartiallyBlindRSA {
         // 2. sk_derived, pk_derived = DeriveKeyPair(sk, info)
         const { secretKey: sk_derived, publicKey: pk_derived } = await this.deriveKeyPair(sk, info);
 
+        // 3. s = RSASP1(sk_derived, m)
+        let s: sjcl.bn;
         if (this.params.supportsRSARAW) {
             const { privateKey } = await PartiallyBlindRSA.bigKeyPairToCryptoKeyPair(
                 { secretKey: sk_derived, publicKey: pk_derived },
@@ -191,11 +193,10 @@ export class PartiallyBlindRSA {
                 },
                 true,
             );
-            return rsaRawBlingSign(privateKey, blindMsg);
+            s = await rsaRawBlingSign(privateKey, blindMsg);
+        } else {
+            s = rsasp1(sk_derived, m);
         }
-
-        // 3. s = RSASP1(sk_derived, m)
-        const s = rsasp1(sk_derived, m);
 
         // 4. m' = RSAVP1(pk_derived, s)
         const mp = rsavp1(pk_derived, s);

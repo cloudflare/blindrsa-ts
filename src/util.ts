@@ -281,8 +281,8 @@ export function random_integer_uniform(n: sjcl.bn, kLen: number): sjcl.bn {
 }
 
 // implement inverseMod for sjcl.bn where p is even
-// taken from wikipedia pseudocode for the extended euclidian algorithm
-// ref https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Pseudocode
+// taken from Wikipedia pseudocode for the extended euclidian algorithm
+// ref https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Modular_integers
 export function inverseMod(x: sjcl.bn, p: sjcl.bn): sjcl.bn {
     if (!(p.getLimb(0) & 1)) {
         if (!(x.getLimb(0) & 1)) {
@@ -314,7 +314,7 @@ export const NATIVE_SUPPORT_NAME = 'RSA-RAW';
 export async function rsaRawBlingSign(
     privateKey: CryptoKey,
     blindMsg: Uint8Array,
-): Promise<Uint8Array> {
+): Promise<sjcl.bn> {
     if (privateKey.algorithm.name !== NATIVE_SUPPORT_NAME) {
         privateKey = await crypto.subtle.importKey(
             'pkcs8',
@@ -329,7 +329,7 @@ export async function rsaRawBlingSign(
         privateKey,
         blindMsg,
     );
-    return new Uint8Array(signature);
+    return os2ip(new Uint8Array(signature));
 }
 
 export type BigPublicKey = { e: sjcl.bn; n: sjcl.bn };
