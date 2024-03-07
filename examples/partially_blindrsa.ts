@@ -12,7 +12,7 @@ function hexNumToB64URL(x: string): string {
     return sjcl.codec.base64url.fromBits(sjcl.codec.hex.toBits(x));
 }
 
-async function preGeneratedKeys(extractable: boolean): Promise<CryptoKeyPair> {
+async function preGeneratedKeys(extractable = true): Promise<CryptoKeyPair> {
     const draft2_first_key: Record<string, string> = {
         p: 'dcd90af1be463632c0d5ea555256a20605af3db667475e190e3af12a34a3324c46a3094062c59fb4b249e0ee6afba8bee14e0276d126c99f4784b23009bf6168ff628ac1486e5ae8e23ce4d362889de4df63109cbd90ef93db5ae64372bfe1c55f832766f21e94ea3322eb2182f10a891546536ba907ad74b8d72469bea396f3',
         q: 'f8ba5c89bd068f57234a3cf54a1c89d5b4cd0194f2633ca7c60b91a795a56fa8c8686c0e37b1c4498b851e3420d08bea29f71d195cfbd3671c6ddc49cf4c1db5b478231ea9d91377ffa98fe95685fca20ba4623212b2f2def4da5b281ed0100b651f6db32112e4017d831c0da668768afa7141d45bbc279f1e0f8735d74395b3',
@@ -52,25 +52,28 @@ async function preGeneratedKeys(extractable: boolean): Promise<CryptoKeyPair> {
     return { privateKey, publicKey };
 }
 
-enum PrepareType {
+enum KeyGenerationType {
     PreGenerated,
-    Node,
+    NodeJS,
     BuiltIn,
 }
 
-function loadKeys(suite: PartiallyBlindRSA, prepare: PrepareType): Promise<CryptoKeyPair> {
+function loadKeys(
+    suite: PartiallyBlindRSA,
+    keyGeneration: KeyGenerationType,
+): Promise<CryptoKeyPair> {
     const algorithm = {
         publicExponent: Uint8Array.from([1, 0, 1]),
         modulusLength: 2048, // [WARNING:] while this can be slow, DO NOT replace modulusLength a number below 2048. This would make your cryptography insecure.
     };
-    switch (prepare) {
-        case PrepareType.PreGenerated:
-            return preGeneratedKeys(true);
-        case PrepareType.Node:
+    switch (keyGeneration) {
+        case KeyGenerationType.PreGenerated:
+            return preGeneratedKeys();
+        case KeyGenerationType.NodeJS:
             return suite.generateKey(algorithm, (length: number) =>
                 generatePrimeSync(length, { safe: true, bigint: true }),
             );
-        case PrepareType.BuiltIn:
+        case KeyGenerationType.BuiltIn:
             return suite.generateKey(algorithm);
     }
 }
@@ -78,10 +81,12 @@ function loadKeys(suite: PartiallyBlindRSA, prepare: PrepareType): Promise<Crypt
 // Example: PartiallyBlindRSA protocol execution.
 export async function partiallyBlindRSAExample(suite: PartiallyBlindRSA) {
     // Setup: Generate server keypair.
-    // Use node crypto library to generate safe prime.
-    // Key generation requires generating safe prime number, which is slow.
-    // The library provides generateKeys method for completeness, but we advice against using it in production.
-    const { privateKey, publicKey } = await loadKeys(suite, PrepareType.Node);
+    //
+    // Key generation requires generating safe prime numbers.
+    // The library provides the `generateKey` method for completeness, but it is slow.
+    // Be aware of this before use it in a performance-critical application.
+    // Alternatively, use node crypto library to generate safe primes.
+    const { privateKey, publicKey } = await loadKeys(suite, KeyGenerationType.NodeJS);
 
     // Client                                       Server
     // ====================================================
