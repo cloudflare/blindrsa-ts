@@ -1,19 +1,14 @@
 {
     "root": true,
     "parserOptions": {
-        "ecmaVersion": 2020,
+        "ecmaVersion": 2022,
         "sourceType": "module"
     },
     "extends": [
         "eslint:recommended",
-        "plugin:security/recommended",
+        "plugin:security/recommended-legacy",
         "plugin:prettier/recommended"
     ],
-    "env": {
-        "es2020": true,
-        "browser": true,
-        "node": true
-    },
     "ignorePatterns": [
         "coverage/*",
         "src/sjcl/index.js",
@@ -27,7 +22,7 @@
             ],
             "parser": "@typescript-eslint/parser",
             "parserOptions": {
-                "ecmaVersion": 2020,
+                "ecmaVersion": 2022,
                 "sourceType": "module"
             },
             "extends": [
