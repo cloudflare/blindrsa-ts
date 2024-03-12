@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import sjcl from './sjcl/index.js';
+import sjcl from 'sjcl';
 
 import { generateSafePrime } from './prime.js';
 import {
@@ -166,7 +166,7 @@ export class PartiallyBlindRSA {
             privateKey,
             'private',
         );
-        if (!jwkKey.n || !jwkKey.d) {
+        if (!jwkKey.n || !jwkKey.d || !jwkKey.p || !jwkKey.q) {
             throw new Error('key has invalid parameters');
         }
         const n = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.n));
@@ -182,7 +182,7 @@ export class PartiallyBlindRSA {
         const { secretKey: sk_derived, publicKey: pk_derived } = await this.deriveKeyPair(sk, info);
 
         // 3. s = RSASP1(sk_derived, m)
-        let s: sjcl.bn;
+        let s: sjcl.BigNumber;
         if (this.params.supportsRSARAW) {
             const { privateKey } = await PartiallyBlindRSA.bigKeyPairToCryptoKeyPair(
                 { secretKey: sk_derived, publicKey: pk_derived },
@@ -222,7 +222,7 @@ export class PartiallyBlindRSA {
             publicKey,
             'public',
         );
-        if (!jwkKey.n) {
+        if (!jwkKey.n || !jwkKey.e) {
             throw new Error('key has invalid parameters');
         }
         const e = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.e));
@@ -285,19 +285,19 @@ export class PartiallyBlindRSA {
 
     static async generateKey(
         algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
-        generateSafePrimeSync: (length: number) => sjcl.bn | bigint = generateSafePrime,
+        generateSafePrimeSync: (length: number) => sjcl.BigNumber | bigint = generateSafePrime,
     ): Promise<CryptoKeyPair> {
         // It requires to seed the internal random number generator.
-        while (sjcl.random.isReady(undefined) === 0) {
+        while (!sjcl.random.isReady(undefined)) {
             const buffer = crypto.getRandomValues(new Uint32Array(4));
-            sjcl.random.addEntropy(buffer, 128, undefined);
+            sjcl.random.addEntropy(Array.from(buffer), 128, 'PartiallyBlindRSA');
         }
 
         // 1. p = SafePrime(bits / 2)
         // 2. q = SafePrime(bits / 2)
         // 3. while p == q, go to step 2.
-        let p: sjcl.bn;
-        let q: sjcl.bn;
+        let p: sjcl.BigNumber;
+        let q: sjcl.BigNumber;
         do {
             const p_tmp = generateSafePrimeSync(algorithm.modulusLength >> 1);
             const q_tmp = generateSafePrimeSync(algorithm.modulusLength >> 1);
@@ -340,7 +340,7 @@ export class PartiallyBlindRSA {
 
     generateKey(
         algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent'>,
-        generateSafePrimeSync: (length: number) => sjcl.bn | bigint = generateSafePrime,
+        generateSafePrimeSync: (length: number) => sjcl.BigNumber | bigint = generateSafePrime,
     ): Promise<CryptoKeyPair> {
         return PartiallyBlindRSA.generateKey(
             { ...algorithm, hash: this.params.hash },
@@ -355,7 +355,7 @@ export class PartiallyBlindRSA {
         info: Uint8Array,
     ): Promise<boolean> {
         const { jwkKey } = await this.extractKeyParams(publicKey, 'public');
-        if (!jwkKey.n) {
+        if (!jwkKey.n || !jwkKey.e) {
             throw new Error('key has invalid parameters');
         }
         const e = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.e));

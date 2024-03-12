@@ -1,6 +1,7 @@
 // Copyright (c) 2024 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
-import sjcl from '../src/sjcl/index.js';
+import sjcl from 'sjcl';
+import { Buffer } from 'node:buffer';
 import { generatePrimeSync } from 'node:crypto';
 
 import type { PartiallyBlindRSA } from '../src/index.js';
@@ -9,7 +10,7 @@ function hexNumToB64URL(x: string): string {
     if (x.startsWith('0x')) {
         x = x.slice(2);
     }
-    return sjcl.codec.base64url.fromBits(sjcl.codec.hex.toBits(x));
+    return Buffer.from(x, 'hex').toString('base64url');
 }
 
 async function preGeneratedKeys(extractable = true): Promise<CryptoKeyPair> {

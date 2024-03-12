@@ -149,10 +149,10 @@ const isValid = await suite.verify(publicKey, signature, preparedMsg); // true
 
 #### Dependencies
 
-This project uses the Stanford JavaScript Crypto Library [sjcl](https://github.com/bitwiseshiftleft/sjcl). Use the following command to configure the library.
+This project uses the Stanford JavaScript Crypto Library [sjcl](https://github.com/bitwiseshiftleft/sjcl) configured as:
 
 ```sh
-make -f sjcl.Makefile
+cd node_modules/sjcl && ./configure --without-all --with-bn --with-codecBase64 --with-codecBytes --compress=none
 ```
 
 ### License

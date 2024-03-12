@@ -2,17 +2,14 @@
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
 import { jest } from '@jest/globals';
+import sjcl from 'sjcl';
 
 import { emsa_pss_encode, is_coprime, random_integer_uniform } from '../src/util.js';
-import sjcl from '../src/sjcl/index.js';
 
+import { hexToUint8 } from './conv.js';
 // Test vector in file pss_test.go from: https://cs.opensource.google/go/go/+/refs/tags/go1.18.2:src/crypto/rsa/pss_test.go
 // Test vector in file pss-int.txt from: ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-1/pkcs-1v2-1-vec.zip
 import vector from './testdata/emsa_pss_vectors.json';
-
-function hexToUint8(x: string): Uint8Array {
-    return new Uint8Array(sjcl.codec.bytes.fromBits(sjcl.codec.hex.toBits(x)));
-}
 
 test('emsa_pss_encode', async () => {
     const hash = 'SHA-1';
