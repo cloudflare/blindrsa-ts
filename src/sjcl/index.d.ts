@@ -1443,3 +1443,24 @@ export namespace random {
 
 }
 
+// export default with all above namespaces
+declare namespace sjcl {
+    export {
+        bn,
+        prng,
+        codec,
+        keyexchange,
+        mode,
+        decrypt,
+        encrypt,
+        bitArray,
+        cipher,
+        exception,
+        hash,
+        json,
+        misc,
+        random,
+    }
+}
+
+export default sjcl;
