@@ -1,6 +1,6 @@
 {
     "name": "@cloudflare/blindrsa-ts",
-    "version": "0.4.1",
+    "version": "0.4.2",
     "description": "blindrsa-ts: A TypeScript Library for the Blind RSA Signature Protocol",
     "author": "Armando Faz <armfazh@cloudflare.com>",
     "maintainers": [
