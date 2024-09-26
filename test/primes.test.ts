@@ -61,24 +61,28 @@ const SAFE_PRIMES = [
 
 beforeEach(() => {
     // It requires to seed the internal random number generator.
-    while (sjcl.random.isReady(undefined) === 0) {
-        sjcl.random.addEntropy(crypto.getRandomValues(new Uint32Array(4)), 128, undefined);
+    while (!sjcl.random.isReady(undefined)) {
+        sjcl.random.addEntropy(
+            Array.from(crypto.getRandomValues(new Uint32Array(4))),
+            128,
+            'undefined',
+        );
     }
 });
 
-test.each(PRIME)('isPrime/%#', async (p) => {
+test.each(PRIME)('isPrime/%#', (p) => {
     expect(isPrime(new sjcl.bn(p))).toBe(true);
 });
 
-test.each(A074379)('notPrimeCarmichael/%#', async (p) => {
+test.each(A074379)('notPrimeCarmichael/%#', (p) => {
     expect(isPrime(new sjcl.bn(p))).toBe(false);
 });
 
-test.each(COMPOSITE)('notPrime/%#', async (p) => {
+test.each(COMPOSITE)('notPrime/%#', (p) => {
     expect(isPrime(new sjcl.bn(p))).toBe(false);
 });
 
-test.each(SAFE_PRIMES)('isSafePrime/%#', async (p) => {
+test.each(SAFE_PRIMES)('isSafePrime/%#', (p) => {
     expect(isSafePrime(new sjcl.bn(p))).toBe(true);
 });
 

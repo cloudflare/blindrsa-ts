@@ -12,6 +12,7 @@ if (typeof crypto === 'undefined') {
 // RSA-RAW is not supported by WebCrypto, so we need to mock it.
 // blindSign operation is similar for deterministic and randomized variants, and salt length is not used during this operation.
 // It matches cloudflare/workerd implementation https://github.com/cloudflare/workerd/blob/6b63c701e263a311c2a3ce64e2aeada69afc32a1/src/workerd/api/crypto-impl-asymmetric.c%2B%2B#L827-L868
+// eslint-disable-next-line @typescript-eslint/unbound-method
 const parentSign = crypto.subtle.sign;
 async function mockSign(
     algorithm: AlgorithmIdentifier | RsaPssParams | EcdsaParams,
@@ -20,7 +21,7 @@ async function mockSign(
 ): Promise<ArrayBuffer> {
     if (
         algorithm === 'RSA-RAW' ||
-        (typeof algorithm !== 'string' && algorithm?.name === 'RSA-RAW')
+        (typeof algorithm !== 'string' && algorithm.name === 'RSA-RAW')
     ) {
         const algorithmName = key.algorithm.name;
         if (algorithmName !== 'RSA-RAW') {
@@ -38,13 +39,14 @@ async function mockSign(
     // webcrypto calls crypto, which is mocked. We need to restore the original implementation.
     crypto.subtle.sign = parentSign;
     const res = crypto.subtle.sign(algorithm, key, data);
-    res.finally(() => {
+    await res.finally(() => {
         crypto.subtle.sign = mockSign;
     });
     return res;
 }
 crypto.subtle.sign = mockSign;
 
+// eslint-disable-next-line @typescript-eslint/unbound-method
 const parentImportKey = crypto.subtle.importKey;
 async function mockImportKey(
     format: KeyFormat,
@@ -56,7 +58,7 @@ async function mockImportKey(
     crypto.subtle.importKey = parentImportKey;
     try {
         if (format === 'jwk') {
-            return crypto.subtle.importKey(
+            return await crypto.subtle.importKey(
                 format,
                 keyData as JsonWebKey,
                 algorithm,
@@ -84,7 +86,7 @@ async function mockImportKey(
             key.algorithm.name = 'RSA-RAW';
             return key;
         }
-        return crypto.subtle.importKey(format, data, algorithm, extractable, keyUsages);
+        return await crypto.subtle.importKey(format, data, algorithm, extractable, keyUsages);
     } finally {
         crypto.subtle.importKey = mockImportKey;
     }
