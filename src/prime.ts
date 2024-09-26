@@ -1,14 +1,14 @@
 // Copyright (c) 2024 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import sjcl from './sjcl/index.js';
+import sjcl from 'sjcl';
 
 const SJCL_PARANOIA = 6;
 
 // Miller-Rabin probabilistic primality test.
 // Algorithm 4.24 of Handbook Applied Cryptography.
 // https://cacr.uwaterloo.ca/hac/about/chap4.pdf
-function millerRabinTest(n: sjcl.bn, SEC_PARAM = 20): boolean {
+function millerRabinTest(n: sjcl.BigNumber, SEC_PARAM = 20): boolean {
     if (n.equals(1)) {
         return false;
     }
@@ -51,14 +51,14 @@ function millerRabinTest(n: sjcl.bn, SEC_PARAM = 20): boolean {
 
 export const isPrime = millerRabinTest;
 
-export function isSafePrime(n: sjcl.bn, SEC_PARAM = 20): boolean {
+export function isSafePrime(n: sjcl.BigNumber, SEC_PARAM = 20): boolean {
     const nDivTwo = new sjcl.bn(n).halveM().normalize();
     return isPrime(n, SEC_PARAM) && isPrime(nDivTwo, SEC_PARAM);
 }
 
 // Brute-force prime search using Miller-Rabin test oracle.
 // https://en.wikipedia.org/wiki/Miller%E2%80%93Rabin_primality_test#Generation_of_probable_primes
-export function generatePrime(bitLength: number, NUM_TRIES_PRIMALITY = 20): sjcl.bn {
+export function generatePrime(bitLength: number, NUM_TRIES_PRIMALITY = 20): sjcl.BigNumber {
     // NUM_TRIES is O(k*b^4) in the worst case,
     // where:
     //   k is the Miller-Rabin primality test parameter,
@@ -72,7 +72,7 @@ export function generatePrime(bitLength: number, NUM_TRIES_PRIMALITY = 20): sjcl
     }
     twoToN.normalize();
 
-    let prime: sjcl.bn;
+    let prime: sjcl.BigNumber;
     let i = 0;
 
     do {
@@ -92,10 +92,10 @@ export function generatePrime(bitLength: number, NUM_TRIES_PRIMALITY = 20): sjcl
 
 // Brute-force safe prime search using Miller-Rabin test oracle.
 // Returns p=2*q+1 such that both p and q are prime numbers.
-export function generateSafePrime(bitLength: number, NUM_TRIES_PRIMALITY = 20): sjcl.bn {
+export function generateSafePrime(bitLength: number, NUM_TRIES_PRIMALITY = 20): sjcl.BigNumber {
     const MAX_NUM_TRIES = bitLength ** 2;
     const ONE = new sjcl.bn(1);
-    let prime: sjcl.bn;
+    let prime: sjcl.BigNumber;
     let i = 0;
 
     do {

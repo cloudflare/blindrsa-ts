@@ -1,34 +1,17 @@
 // Copyright (c) 2024 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import sjcl from '../src/sjcl/index.js';
+import sjcl from 'sjcl';
 import { jest } from '@jest/globals';
 
 import { i2osp } from '../src/util.js';
 import { PartiallyBlindRSA, RSAPBSSA, getSuiteByName } from '../src/index.js';
 import { isSafePrime } from '../src/prime.js';
 
+import { hexNumToB64URL, hexToUint8, uint8ToHex } from './conv.js';
 // Test vectors
 // https://datatracker.ietf.org/doc/html/draft-amjad-cfrg-partially-blind-rsa-02#name-test-vectors
 import vectors from './testdata/test_vectors_partially_blind_rsa_draft_2.json';
-
-function hexNumToB64URL(x: string): string {
-    if (x.startsWith('0x')) {
-        x = x.slice(2);
-    }
-    return sjcl.codec.base64url.fromBits(sjcl.codec.hex.toBits(x));
-}
-
-function hexToUint8(x: string): Uint8Array {
-    if (x.startsWith('0x')) {
-        x = x.slice(2);
-    }
-    return new Uint8Array(sjcl.codec.bytes.fromBits(sjcl.codec.hex.toBits(x)));
-}
-
-function uint8ToHex(x: Uint8Array): string {
-    return sjcl.codec.hex.fromBits(sjcl.codec.bytes.toBits(x));
-}
 
 type Vector = (typeof vectors)[number];
 
@@ -143,8 +126,12 @@ describe.each(vectors)('Errors-vec$#', (v: Vector) => {
 
 test.each(vectors)('TestVector_$#/safePrimes', (v: Vector) => {
     // It requires to seed the internal random number generator.
-    while (sjcl.random.isReady(undefined) === 0) {
-        sjcl.random.addEntropy(crypto.getRandomValues(new Uint32Array(4)), 128, undefined);
+    while (!sjcl.random.isReady(undefined)) {
+        sjcl.random.addEntropy(
+            Array.from(crypto.getRandomValues(new Uint32Array(4))),
+            128,
+            'test_vectors',
+        );
     }
 
     expect(isSafePrime(new sjcl.bn(v.p))).toBe(true);

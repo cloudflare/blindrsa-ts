@@ -1,7 +1,8 @@
 // Copyright (c) 2023 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import sjcl from './sjcl/index.js';
+import sjcl from 'sjcl';
+
 import {
     assertNever,
     emsa_pss_encode,
@@ -151,7 +152,7 @@ export class BlindRSA {
             privateKey,
             'private',
         );
-        if (!jwkKey.n || !jwkKey.d) {
+        if (!jwkKey.n || !jwkKey.d || !jwkKey.e) {
             throw new Error('key has invalid parameters');
         }
         const n = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.n));
@@ -164,7 +165,7 @@ export class BlindRSA {
         const m = os2ip(blindMsg);
 
         // 2. s = RSASP1(sk, m)
-        let s: sjcl.bn;
+        let s: sjcl.BigNumber;
         if (this.params.supportsRSARAW) {
             s = await rsaRawBlingSign(privateKey, blindMsg);
         } else {

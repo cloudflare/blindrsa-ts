@@ -1,7 +1,7 @@
 // Copyright (c) 2023 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import sjcl from './sjcl/index.js';
+import sjcl from 'sjcl';
 
 export function assertNever(name: string, x: unknown): never {
     throw new Error(`unexpected ${name} identifier: ${x}`);
@@ -27,16 +27,16 @@ function getHashParams(hash: string): HashParams {
     }
 }
 
-export function os2ip(bytes: Uint8Array): sjcl.bn {
-    return sjcl.bn.fromBits(sjcl.codec.bytes.toBits(bytes));
+export function os2ip(bytes: Uint8Array): sjcl.BigNumber {
+    return sjcl.bn.fromBits(sjcl.codec.bytes.toBits(Array.from(bytes)));
 }
 
-export function i2osp(num: sjcl.bn, byteLength: number): Uint8Array {
+export function i2osp(num: sjcl.BigNumber, byteLength: number): Uint8Array {
     if (Math.ceil(num.bitLength() / 8) > byteLength) {
         throw new Error(`number does not fit in ${byteLength} bytes`);
     }
     const bytes = new Uint8Array(byteLength);
-    const unpadded = new Uint8Array(sjcl.codec.bytes.fromBits(num.toBits(undefined), false));
+    const unpadded = new Uint8Array(sjcl.codec.bytes.fromBits(num.toBits(undefined)));
     bytes.set(unpadded, byteLength - unpadded.length);
     return bytes;
 }
@@ -209,10 +209,13 @@ export async function emsa_pss_encode(
 
 // RSAVP1
 // https://www.rfc-editor.org/rfc/rfc3447.html#section-5.2.2
-export function rsavp1(pkS: { n: sjcl.bn; e: sjcl.bn }, s: sjcl.bn): sjcl.bn {
+export function rsavp1(
+    pkS: { n: sjcl.BigNumber; e: sjcl.BigNumber },
+    s: sjcl.BigNumber,
+): sjcl.BigNumber {
     //  1. If the signature representative s is not between 0 and n - 1,
     //    output "signature representative out of range" and stop.
-    if (!s.greaterEquals(new sjcl.bn(0)) || s.greaterEquals(pkS.n) == 1) {
+    if (!s.greaterEquals(new sjcl.bn(0)) || s.greaterEquals(pkS.n)) {
         throw new Error('signature representative out of range');
     }
     // 2. Let m = s^e mod n.
@@ -223,10 +226,13 @@ export function rsavp1(pkS: { n: sjcl.bn; e: sjcl.bn }, s: sjcl.bn): sjcl.bn {
 
 // RSASP1
 // https://www.rfc-editor.org/rfc/rfc3447.html#section-5.2.1
-export function rsasp1(skS: { n: sjcl.bn; d: sjcl.bn }, m: sjcl.bn): sjcl.bn {
+export function rsasp1(
+    skS: { n: sjcl.BigNumber; d: sjcl.BigNumber },
+    m: sjcl.BigNumber,
+): sjcl.BigNumber {
     // 1. If the message representative m is not between 0 and n - 1,
     //    output "message representative out of range" and stop.
-    if (!m.greaterEquals(new sjcl.bn(0)) || m.greaterEquals(skS.n) == 1) {
+    if (!m.greaterEquals(new sjcl.bn(0)) || m.greaterEquals(skS.n)) {
         throw new Error('signature representative out of range');
     }
     // 2. The signature representative s is computed as follows.
@@ -255,7 +261,7 @@ export function rsasp1(skS: { n: sjcl.bn; d: sjcl.bn }, m: sjcl.bn): sjcl.bn {
     return s;
 }
 
-export function is_coprime(x: sjcl.bn, n: sjcl.bn): boolean {
+export function is_coprime(x: sjcl.BigNumber, n: sjcl.BigNumber): boolean {
     try {
         x.inverseMod(n);
     } catch (_) {
@@ -267,7 +273,7 @@ export function is_coprime(x: sjcl.bn, n: sjcl.bn): boolean {
 
 // Generates a random, uniformly distributed integer R between 1 inclusive
 // and N exclusive, i.e., 1 <= R < N.
-export function random_integer_uniform(n: sjcl.bn, kLen: number): sjcl.bn {
+export function random_integer_uniform(n: sjcl.BigNumber, kLen: number): sjcl.BigNumber {
     const MAX_NUM_TRIES = 128;
 
     for (let i = 0; i < MAX_NUM_TRIES; i++) {
@@ -283,7 +289,7 @@ export function random_integer_uniform(n: sjcl.bn, kLen: number): sjcl.bn {
 // implement inverseMod for sjcl.bn where p is even
 // taken from Wikipedia pseudocode for the extended euclidian algorithm
 // ref https://en.wikipedia.org/wiki/Extended_Euclidean_algorithm#Modular_integers
-export function inverseMod(x: sjcl.bn, p: sjcl.bn): sjcl.bn {
+export function inverseMod(x: sjcl.BigNumber, p: sjcl.BigNumber): sjcl.BigNumber {
     if (!(p.getLimb(0) & 1)) {
         if (!(x.getLimb(0) & 1)) {
             throw new Error('inverseMod: The given number is not invertible.');
@@ -314,7 +320,7 @@ export const NATIVE_SUPPORT_NAME = 'RSA-RAW';
 export async function rsaRawBlingSign(
     privateKey: CryptoKey,
     blindMsg: Uint8Array,
-): Promise<sjcl.bn> {
+): Promise<sjcl.BigNumber> {
     if (privateKey.algorithm.name !== NATIVE_SUPPORT_NAME) {
         privateKey = await crypto.subtle.importKey(
             'pkcs8',
@@ -332,8 +338,13 @@ export async function rsaRawBlingSign(
     return os2ip(new Uint8Array(signature));
 }
 
-export type BigPublicKey = { e: sjcl.bn; n: sjcl.bn };
+export type BigPublicKey = { e: sjcl.BigNumber; n: sjcl.BigNumber };
 
-export type BigSecretKey = { d: sjcl.bn; n: sjcl.bn; p: sjcl.bn; q: sjcl.bn };
+export type BigSecretKey = {
+    d: sjcl.BigNumber;
+    n: sjcl.BigNumber;
+    p: sjcl.BigNumber;
+    q: sjcl.BigNumber;
+};
 
 export type BigKeyPair = { publicKey: BigPublicKey; secretKey: BigSecretKey };
