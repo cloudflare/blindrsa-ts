@@ -21,18 +21,13 @@ import {
     inverseMod,
     rsaRawBlingSign,
 } from './util.js';
-import type { BlindRSAParams, BlindRSAPlatformParams } from './blindrsa.js';
-
-export enum PrepareType {
-    Deterministic = 0,
-    Randomized = 32,
-}
+import { PrepareType, type BlindRSAParams, type BlindRSAPlatformParams } from './blindrsa.js';
 
 export type BlindOutput = { blindedMsg: Uint8Array; inv: Uint8Array };
 
-export interface PartiallyBlindRSAParams extends BlindRSAParams {}
+export type PartiallyBlindRSAParams = BlindRSAParams;
 
-export interface PartiallyBlindRSAPlatformParams extends BlindRSAPlatformParams {}
+export type PartiallyBlindRSAPlatformParams = BlindRSAPlatformParams;
 
 export class PartiallyBlindRSA {
     private static readonly NAME = 'RSA-PSS';
@@ -124,7 +119,7 @@ export class PartiallyBlindRSA {
         // 6. If c is false, raise an "invalid input" error
         //    and stop
         const c = is_coprime(m, n);
-        if (c === false) {
+        if (!c) {
             throw new Error('invalid input');
         }
 
@@ -166,7 +161,7 @@ export class PartiallyBlindRSA {
             privateKey,
             'private',
         );
-        if (!jwkKey.n || !jwkKey.d) {
+        if (!jwkKey.n || !jwkKey.d || !jwkKey.p || !jwkKey.q) {
             throw new Error('key has invalid parameters');
         }
         const n = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.n));
@@ -182,7 +177,7 @@ export class PartiallyBlindRSA {
         const { secretKey: sk_derived, publicKey: pk_derived } = await this.deriveKeyPair(sk, info);
 
         // 3. s = RSASP1(sk_derived, m)
-        let s: sjcl.bn;
+        let s: sjcl.BigNumber;
         if (this.params.supportsRSARAW) {
             const { privateKey } = await PartiallyBlindRSA.bigKeyPairToCryptoKeyPair(
                 { secretKey: sk_derived, publicKey: pk_derived },
@@ -202,7 +197,7 @@ export class PartiallyBlindRSA {
         const mp = rsavp1(pk_derived, s);
 
         // 5. If m != m', raise "signing failure" and stop
-        if (m.equals(mp) === false) {
+        if (!m.equals(mp)) {
             throw new Error('signing failure');
         }
 
@@ -222,7 +217,7 @@ export class PartiallyBlindRSA {
             publicKey,
             'public',
         );
-        if (!jwkKey.n) {
+        if (!jwkKey.e || !jwkKey.n) {
             throw new Error('key has invalid parameters');
         }
         const e = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.e));
@@ -285,19 +280,19 @@ export class PartiallyBlindRSA {
 
     static async generateKey(
         algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
-        generateSafePrimeSync: (length: number) => sjcl.bn | bigint = generateSafePrime,
+        generateSafePrimeSync: (length: number) => sjcl.BigNumber | bigint = generateSafePrime,
     ): Promise<CryptoKeyPair> {
         // It requires to seed the internal random number generator.
-        while (sjcl.random.isReady(undefined) === 0) {
+        while (!sjcl.random.isReady(undefined)) {
             const buffer = crypto.getRandomValues(new Uint32Array(4));
-            sjcl.random.addEntropy(buffer, 128, undefined);
+            sjcl.random.addEntropy(Array.from(buffer), 128, 'undefined');
         }
 
         // 1. p = SafePrime(bits / 2)
         // 2. q = SafePrime(bits / 2)
         // 3. while p == q, go to step 2.
-        let p: sjcl.bn;
-        let q: sjcl.bn;
+        let p: sjcl.BigNumber;
+        let q: sjcl.BigNumber;
         do {
             const p_tmp = generateSafePrimeSync(algorithm.modulusLength >> 1);
             const q_tmp = generateSafePrimeSync(algorithm.modulusLength >> 1);
@@ -340,7 +335,7 @@ export class PartiallyBlindRSA {
 
     generateKey(
         algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent'>,
-        generateSafePrimeSync: (length: number) => sjcl.bn | bigint = generateSafePrime,
+        generateSafePrimeSync: (length: number) => sjcl.BigNumber | bigint = generateSafePrime,
     ): Promise<CryptoKeyPair> {
         return PartiallyBlindRSA.generateKey(
             { ...algorithm, hash: this.params.hash },
@@ -355,7 +350,7 @@ export class PartiallyBlindRSA {
         info: Uint8Array,
     ): Promise<boolean> {
         const { jwkKey } = await this.extractKeyParams(publicKey, 'public');
-        if (!jwkKey.n) {
+        if (!jwkKey.e || !jwkKey.n) {
             throw new Error('key has invalid parameters');
         }
         const e = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.e));

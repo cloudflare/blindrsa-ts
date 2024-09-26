@@ -1,32 +1,17 @@
 // Copyright (c) 2023 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import { jest } from '@jest/globals';
 import sjcl from '../src/sjcl/index.js';
+import type { BigNumber } from 'sjcl';
+import { jest } from '@jest/globals';
+
 import { i2osp } from '../src/util.js';
 import { BlindRSA, RSABSSA, getSuiteByName } from '../src/index.js';
 
 // Test vectors
 // https://www.rfc-editor.org/rfc/rfc9474.html#name-test-vectors
 import vectors from './testdata/test_vectors_rfc9474.json';
-
-function hexNumToB64URL(x: string): string {
-    if (x.startsWith('0x')) {
-        x = x.slice(2);
-    }
-    return sjcl.codec.base64url.fromBits(sjcl.codec.hex.toBits(x));
-}
-
-function hexToUint8(x: string): Uint8Array {
-    if (x.startsWith('0x')) {
-        x = x.slice(2);
-    }
-    return new Uint8Array(sjcl.codec.bytes.fromBits(sjcl.codec.hex.toBits(x)));
-}
-
-function uint8ToHex(x: Uint8Array): string {
-    return sjcl.codec.hex.fromBits(sjcl.codec.bytes.toBits(x));
-}
+import { hexNumToB64URL, hexToUint8, uint8ToHex } from './util.js';
 
 type Vector = (typeof vectors)[number];
 
@@ -47,10 +32,10 @@ function paramsFromVector(v: Vector): {
     const q = hexNumToB64URL(v.q);
 
     // Calculate CRT values
-    const bnD = new sjcl.bn(v.d);
-    const bnP = new sjcl.bn(v.p);
-    const bnQ = new sjcl.bn(v.q);
-    const one = new sjcl.bn(1);
+    const bnD: BigNumber = new sjcl.bn(v.d);
+    const bnP: BigNumber = new sjcl.bn(v.p);
+    const bnQ: BigNumber = new sjcl.bn(v.q);
+    const one: BigNumber = new sjcl.bn(1);
     const dp = hexNumToB64URL(bnD.mod(bnP.sub(one)).toString());
     const dq = hexNumToB64URL(bnD.mod(bnQ.sub(one)).toString());
     const qi = hexNumToB64URL(bnQ.inverseMod(bnP).toString());
@@ -135,9 +120,9 @@ describe.each(vectors)('Errors-vec$#', (v: Vector) => {
 
 describe.each(vectors)('TestVectors', (v: Vector) => {
     beforeEach(() => {
-        const n = new sjcl.bn(v.n);
+        const n: BigNumber = new sjcl.bn(v.n);
         const kLen = Math.ceil(n.bitLength() / 8);
-        const rInv = new sjcl.bn(v.inv);
+        const rInv: BigNumber = new sjcl.bn(v.inv);
         const r = rInv.inverseMod(n);
         const rBytes = i2osp(r, kLen);
 
@@ -150,7 +135,7 @@ describe.each(vectors)('TestVectors', (v: Vector) => {
     const params = [[], [{ supportsRSARAW: true }]];
 
     test.each(params)(
-        `${v.name}`,
+        `_${v.name}`,
         async (...params) => {
             const blindRSA = getSuiteByName(BlindRSA, v.name, ...params);
             expect(blindRSA.toString()).toBe(v.name);

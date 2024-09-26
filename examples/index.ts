@@ -21,11 +21,10 @@ async function examples() {
     await partiallyBlindRSAExample(RSAPBSSA.SHA384.PSSZero.Randomized());
     await partiallyBlindRSAExample(RSAPBSSA.SHA384.PSS.Deterministic());
     await partiallyBlindRSAExample(RSAPBSSA.SHA384.PSSZero.Deterministic());
-    /* eslint-enable prettier/prettier */
 }
 
-examples().catch((e: Error) => {
-    console.log(`Error: ${e.message}`);
-    console.log(`Stack: ${e.stack}`);
+examples().catch((e: unknown) => {
+    console.log(`Error: ${(e as Error).message}`);
+    console.log(`Stack: ${(e as Error).stack}`);
     process.exit(1);
 });
