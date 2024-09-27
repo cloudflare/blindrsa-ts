@@ -4,19 +4,24 @@
 # Run this file from the root of the project.
 # $ make -f sjcl.Makefile
 
-SJCL_OUTPUT_PATH=src/sjcl
-SJCL_SRC_PATH=node_modules/sjcl
+SJCL_OUTPUT_PATH=$(CURDIR)/src/sjcl
 
-all:
-	cd ${SJCL_SRC_PATH} && \
+.ONESHELL:
+
+all: ${SJCL_OUTPUT_PATH}/index.js ${SJCL_OUTPUT_PATH}/index.d.ts
+
+${SJCL_OUTPUT_PATH}/index.js:
+	cd node_modules/sjcl
 	./configure --without-all --with-bn --with-convenience --compress=none \
-            --with-codecBytes --with-codecHex --with-codecArrayBuffer && \
+                --with-codecBytes --with-codecHex --with-codecArrayBuffer
 	make
-	npm i -D dts-gen
-	npx dts-gen -m sjcl -o -f ${SJCL_OUTPUT_PATH}/index
-	npm un -D dts-gen
-	echo "export default sjcl;" >> ${SJCL_SRC_PATH}/sjcl.js
-	cp ${SJCL_SRC_PATH}/sjcl.js ${SJCL_OUTPUT_PATH}/index.js
+	cp sjcl.js $@
+	echo "export default sjcl;" >> $@
+
+${SJCL_OUTPUT_PATH}/index.d.ts:
+	npm i -D @types/sjcl
+	cp node_modules/@types/sjcl/index.d.ts $@
+	npm un -D @types/sjcl
 
 clean:
-	rm -f ${SJCL_OUTPUT_PATH}/index.js ${SJCL_OUTPUT_PATH}/index.d.ts
+	rm -f ${SJCL_OUTPUT_PATH}/index.d.ts ${SJCL_OUTPUT_PATH}/index.js
