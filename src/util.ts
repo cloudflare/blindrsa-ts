@@ -47,13 +47,14 @@ export function int_to_bytes(num: number, byteLength: number): Uint8Array {
 
 export function joinAll(a: Uint8Array[]): Uint8Array {
     let size = 0;
-    for (let i = 0; i < a.length; i++) {
-        size += a[i].length;
+    for (const ai of a) {
+        size += ai.length;
     }
     const ret = new Uint8Array(new ArrayBuffer(size));
-    for (let i = 0, offset = 0; i < a.length; i++) {
-        ret.set(a[i], offset);
-        offset += a[i].length;
+    let offset = 0;
+    for (const ai of a) {
+        ret.set(ai, offset);
+        offset += ai.length;
     }
     return ret;
 }
@@ -62,12 +63,9 @@ export function xor(a: Uint8Array, b: Uint8Array): Uint8Array {
     if (a.length !== b.length || a.length === 0) {
         throw new Error(`arrays of different length: ${a.length} - ${b.length}`);
     }
-    const n = a.length;
-    const c = new Uint8Array(n);
-    for (let i = 0; i < n; i++) {
-        c[i] = a[i] ^ b[i];
-    }
-    return c;
+    const ai: IterableIterator<number> = a[Symbol.iterator]();
+    const bi: IterableIterator<number> = b[Symbol.iterator]();
+    return new Uint8Array(a.length).map(() => ai.next().value ^ bi.next().value);
 }
 
 function incCounter(c: Uint8Array): void {

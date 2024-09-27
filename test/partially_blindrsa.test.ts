@@ -2,7 +2,6 @@
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
 import sjcl from '../src/sjcl/index.js';
-import type { BigNumber } from 'sjcl';
 import { jest } from '@jest/globals';
 
 import { i2osp } from '../src/util.js';
@@ -33,10 +32,10 @@ function paramsFromVector(v: Vector): {
     const q = hexNumToB64URL(v.q);
 
     // Calculate CRT values
-    const bnD: BigNumber = new sjcl.bn(v.d);
-    const bnP: BigNumber = new sjcl.bn(v.p);
-    const bnQ: BigNumber = new sjcl.bn(v.q);
-    const one: BigNumber = new sjcl.bn(1);
+    const bnD = new sjcl.bn(v.d);
+    const bnP = new sjcl.bn(v.p);
+    const bnQ = new sjcl.bn(v.q);
+    const one = new sjcl.bn(1);
     const dp = hexNumToB64URL(bnD.mod(bnP.sub(one)).toString());
     const dq = hexNumToB64URL(bnD.mod(bnQ.sub(one)).toString());
     const qi = hexNumToB64URL(bnQ.inverseMod(bnP).toString());

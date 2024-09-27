@@ -14,7 +14,6 @@ export default eslintTS.config(
             'jest.config.mjs',
             'eslint.config.mjs',
             'coverage/*',
-            'src/groupSjcl.ts',
             'src/sjcl/index.js',
             'src/sjcl/index.d.ts',
             'lib/*'
