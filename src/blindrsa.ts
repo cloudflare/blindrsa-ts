@@ -116,7 +116,7 @@ export class BlindRSA {
         // 5. If c is false, raise an "invalid input" error
         //    and stop
         const c = is_coprime(m, n);
-        if (c === false) {
+        if (!c) {
             throw new Error('invalid input');
         }
 
@@ -151,7 +151,7 @@ export class BlindRSA {
             privateKey,
             'private',
         );
-        if (!jwkKey.n || !jwkKey.d) {
+        if (!jwkKey.n || !jwkKey.d || !jwkKey.e) {
             throw new Error('key has invalid parameters');
         }
         const n = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.n));
@@ -164,7 +164,7 @@ export class BlindRSA {
         const m = os2ip(blindMsg);
 
         // 2. s = RSASP1(sk, m)
-        let s: sjcl.bn;
+        let s: sjcl.BigNumber;
         if (this.params.supportsRSARAW) {
             s = await rsaRawBlingSign(privateKey, blindMsg);
         } else {
@@ -175,7 +175,7 @@ export class BlindRSA {
         const mp = rsavp1(pk, s);
 
         // 4. If m != m', raise "signing failure" and stop
-        if (m.equals(mp) === false) {
+        if (!m.equals(mp)) {
             throw new Error('signing failure');
         }
 

@@ -7,7 +7,7 @@
         "sourceMap": false,
         "allowJs": true
     },
-    "files": [
-        "index.js"
+    "include": [
+        "."
     ]
 }
