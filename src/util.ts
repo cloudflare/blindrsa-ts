@@ -346,3 +346,11 @@ export type BigSecretKey = {
 };
 
 export type BigKeyPair = { publicKey: BigPublicKey; secretKey: BigSecretKey };
+
+export function prepare_sjcl_random_generator() {
+    // It requires to seed the internal random number generator.
+    const source = 'crypto.getRandomValues';
+    while (!sjcl.random.isReady(undefined)) {
+        sjcl.random.addEntropy(Array.from(crypto.getRandomValues(new Uint32Array(4))), 128, source);
+    }
+}

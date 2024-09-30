@@ -130,14 +130,10 @@ export function getSuiteByName<T>(
         new (params: BlindRSAParams & BlindRSAPlatformParams): T;
     },
     name: string,
-    params?: BlindRSAPlatformParams,
+    params: BlindRSAPlatformParams = { supportsRSARAW: false },
 ): T {
     for (const suiteParams of Object.values(Params)) {
         if (name.toLowerCase() === suiteParams.name.toLowerCase()) {
-            if (!params) {
-                params = { supportsRSARAW: false };
-            }
-
             return new newT({ ...suiteParams, ...params });
         }
     }

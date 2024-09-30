@@ -4,7 +4,7 @@
 import sjcl from '../src/sjcl/index.js';
 import { jest } from '@jest/globals';
 
-import { i2osp } from '../src/util.js';
+import { i2osp, prepare_sjcl_random_generator } from '../src/util.js';
 import { PartiallyBlindRSA, RSAPBSSA, getSuiteByName } from '../src/index.js';
 import { isSafePrime } from '../src/prime.js';
 
@@ -125,15 +125,7 @@ describe.each(vectors)('Errors-vec$#', (v: Vector) => {
 });
 
 test.each(vectors)('TestVector_$#/safePrimes', (v: Vector) => {
-    // It requires to seed the internal random number generator.
-    while (!sjcl.random.isReady(undefined)) {
-        sjcl.random.addEntropy(
-            Array.from(crypto.getRandomValues(new Uint32Array(4))),
-            128,
-            'undefined',
-        );
-    }
-
+    prepare_sjcl_random_generator();
     expect(isSafePrime(new sjcl.bn(v.p))).toBe(true);
     expect(isSafePrime(new sjcl.bn(v.q))).toBe(true);
 });

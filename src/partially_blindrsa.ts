@@ -15,11 +15,12 @@ import {
     random_integer_uniform,
     rsasp1,
     rsavp1,
+    inverseMod,
+    rsaRawBlingSign,
+    prepare_sjcl_random_generator,
     type BigPublicKey,
     type BigSecretKey,
     type BigKeyPair,
-    inverseMod,
-    rsaRawBlingSign,
 } from './util.js';
 import { PrepareType, type BlindRSAParams, type BlindRSAPlatformParams } from './blindrsa.js';
 
@@ -282,11 +283,7 @@ export class PartiallyBlindRSA {
         algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
         generateSafePrimeSync: (length: number) => sjcl.BigNumber | bigint = generateSafePrime,
     ): Promise<CryptoKeyPair> {
-        // It requires to seed the internal random number generator.
-        while (!sjcl.random.isReady(undefined)) {
-            const buffer = crypto.getRandomValues(new Uint32Array(4));
-            sjcl.random.addEntropy(Array.from(buffer), 128, 'undefined');
-        }
+        prepare_sjcl_random_generator();
 
         // 1. p = SafePrime(bits / 2)
         // 2. q = SafePrime(bits / 2)

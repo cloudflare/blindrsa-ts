@@ -24,4 +24,4 @@ ${SJCL_OUTPUT_PATH}/index.d.ts:
 	npm un -D @types/sjcl
 
 clean:
-	rm -f ${SJCL_OUTPUT_PATH}/index.d.ts ${SJCL_OUTPUT_PATH}/index.js
+	rm -f ${SJCL_OUTPUT_PATH}/index.js ${SJCL_OUTPUT_PATH}/index.d.ts
