@@ -4,6 +4,7 @@
 import { jest } from '@jest/globals';
 
 import sjcl from '../src/sjcl/index.js';
+import { prepare_sjcl_random_generator } from '../src/util.js';
 
 import { generatePrime, generateSafePrime, isPrime, isSafePrime } from '../src/prime.js';
 
@@ -59,16 +60,7 @@ const SAFE_PRIMES = [
     '0x9f62917a38e8136a8d942aa6854637800713ad3bd0b58d971910c5c233',
 ];
 
-beforeEach(() => {
-    // It requires to seed the internal random number generator.
-    while (!sjcl.random.isReady(undefined)) {
-        sjcl.random.addEntropy(
-            Array.from(crypto.getRandomValues(new Uint32Array(4))),
-            128,
-            'undefined',
-        );
-    }
-});
+beforeEach(prepare_sjcl_random_generator);
 
 test.each(PRIME)('isPrime/%#', (p) => {
     expect(isPrime(new sjcl.bn(p))).toBe(true);
