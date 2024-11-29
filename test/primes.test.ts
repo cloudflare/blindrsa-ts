@@ -2,8 +2,7 @@
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
 import { jest } from '@jest/globals';
-
-import sjcl from '../src/sjcl/index.js';
+import sjcl from 'sjcl';
 
 import { generatePrime, generateSafePrime, isPrime, isSafePrime } from '../src/prime.js';
 
@@ -61,8 +60,12 @@ const SAFE_PRIMES = [
 
 beforeEach(() => {
     // It requires to seed the internal random number generator.
-    while (sjcl.random.isReady(undefined) === 0) {
-        sjcl.random.addEntropy(crypto.getRandomValues(new Uint32Array(4)), 128, undefined);
+    while (!sjcl.random.isReady(undefined)) {
+        sjcl.random.addEntropy(
+            Array.from(crypto.getRandomValues(new Uint32Array(4))),
+            128,
+            'test_primes',
+        );
     }
 });
 

@@ -28,13 +28,16 @@
         "node": ">=18"
     },
     "scripts": {
-        "build": "tsc -b && cp src/sjcl/index.d.ts lib/src/sjcl/index.d.ts",
+        "build": "tsc -b",
         "test": "tsc -b test && node --experimental-vm-modules node_modules/jest/bin/jest.js --ci",
         "lint": "eslint .",
         "format": "prettier './(src|test|examples)/**/!(*.d).ts' --write",
         "bench": "tsc -b bench && node ./lib/bench/index.js",
         "examples": "tsc -b examples && node ./lib/examples/index.js",
-        "clean": "rimraf lib coverage"
+        "clean": "rimraf lib coverage",
+        "sjcl": "cd node_modules/sjcl && concat -o sjcl.js core/sjcl.js core/aes.js core/bitArray.js core/codecString.js core/codecBase64.js core/codecBytes.js core/sha256.js core/random.js core/bn.js core/exports.js",
+        "prepack": "npm run sjcl && npm run build",
+        "prepare": "npm run sjcl && npm run build"
     },
     "dependencies": {
         "sjcl": "1.0.8"
@@ -42,9 +45,11 @@
     "devDependencies": {
         "@types/benchmark": "2.1.5",
         "@types/jest": "29.5.12",
+        "@types/sjcl": "1.0.34",
         "@typescript-eslint/eslint-plugin": "7.2.0",
         "@typescript-eslint/parser": "7.2.0",
         "benchmark": "2.1.4",
+        "concat": "1.0.3",
         "eslint": "8.57.0",
         "eslint-config-prettier": "9.1.0",
         "eslint-plugin-jest": "27.9.0",

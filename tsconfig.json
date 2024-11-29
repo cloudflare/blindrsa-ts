@@ -31,9 +31,6 @@
     "include": [],
     "references": [
         {
-            "path": "./src/sjcl"
-        },
-        {
             "path": "./src"
         }
     ]
