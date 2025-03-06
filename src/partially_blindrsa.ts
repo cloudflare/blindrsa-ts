@@ -17,6 +17,7 @@ import {
     rsavp1,
     inverseMod,
     rsaRawBlingSign,
+    NATIVE_SUPPORT_NAME,
     prepare_sjcl_random_generator,
     type BigPublicKey,
     type BigSecretKey,
@@ -67,7 +68,14 @@ export class PartiallyBlindRSA {
         modulusLengthBytes: number;
         hash: string;
     }> {
-        if (key.type !== type || key.algorithm.name !== PartiallyBlindRSA.NAME) {
+        if (key.type !== type) {
+            throw new Error(`key is not ${type}`);
+        }
+        const algorithmNames = [PartiallyBlindRSA.NAME];
+        if (this.params.supportsRSARAW) {
+            algorithmNames.push(NATIVE_SUPPORT_NAME);
+        }
+        if (!algorithmNames.includes(key.algorithm.name)) {
             throw new Error(`key is not ${PartiallyBlindRSA.NAME}`);
         }
         if (!key.extractable) {

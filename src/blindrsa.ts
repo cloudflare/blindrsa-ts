@@ -8,6 +8,7 @@ import {
     i2osp,
     is_coprime,
     joinAll,
+    NATIVE_SUPPORT_NAME,
     os2ip,
     random_integer_uniform,
     rsaRawBlingSign,
@@ -70,7 +71,14 @@ export class BlindRSA {
         modulusLengthBytes: number;
         hash: string;
     }> {
-        if (key.type !== type || key.algorithm.name !== BlindRSA.NAME) {
+        if (key.type !== type) {
+            throw new Error(`key is not ${type}`);
+        }
+        const algorithmNames = [BlindRSA.NAME];
+        if (this.params.supportsRSARAW) {
+            algorithmNames.push(NATIVE_SUPPORT_NAME);
+        }
+        if (!algorithmNames.includes(key.algorithm.name)) {
             throw new Error(`key is not ${BlindRSA.NAME}`);
         }
         if (!key.extractable) {
