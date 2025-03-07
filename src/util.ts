@@ -318,7 +318,7 @@ export const NATIVE_SUPPORT_NAME = 'RSA-RAW';
 export async function rsaRawBlingSign(
     privateKey: CryptoKey,
     blindMsg: Uint8Array,
-): Promise<sjcl.BigNumber> {
+): Promise<Uint8Array> {
     if (privateKey.algorithm.name !== NATIVE_SUPPORT_NAME) {
         privateKey = await crypto.subtle.importKey(
             'pkcs8',
@@ -333,7 +333,7 @@ export async function rsaRawBlingSign(
         privateKey,
         blindMsg,
     );
-    return os2ip(new Uint8Array(signature));
+    return new Uint8Array(signature);
 }
 
 export type BigPublicKey = { e: sjcl.BigNumber; n: sjcl.BigNumber };
