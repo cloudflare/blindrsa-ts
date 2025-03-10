@@ -1,7 +1,7 @@
 // Copyright (c) 2023 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import { jest } from '@jest/globals';
+import { expect, test, vi } from 'vitest';
 
 import { emsa_pss_encode, is_coprime, random_integer_uniform } from '../src/util.js';
 import sjcl from '../src/sjcl/index.js';
@@ -17,7 +17,7 @@ test('emsa_pss_encode', async () => {
     const salt = hexToUint8(vector.salt);
     const sLen = salt.length;
 
-    jest.spyOn(crypto, 'getRandomValues').mockReturnValueOnce(salt);
+    vi.spyOn(crypto, 'getRandomValues').mockReturnValueOnce(salt);
 
     const encoded = await emsa_pss_encode(msg, 1023, { hash, sLen });
     expect(encoded).toStrictEqual(hexToUint8(vector.expected));
@@ -36,6 +36,6 @@ test('random_integer_uniform', () => {
     const mLen = 2;
     const zeros = new Uint8Array(mLen);
 
-    jest.spyOn(crypto, 'getRandomValues').mockReturnValue(zeros);
+    vi.spyOn(crypto, 'getRandomValues').mockReturnValue(zeros);
     expect(() => random_integer_uniform(m, mLen)).toThrow(Error);
 });
