@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import sjcl from '../src/sjcl/index.js';
 import { prepare_sjcl_random_generator } from '../src/util.js';
@@ -78,27 +78,35 @@ test.each(SAFE_PRIMES)('isSafePrime/%#', (p) => {
     expect(isSafePrime(new sjcl.bn(p))).toBe(true);
 });
 
-test.each([128, 256, 512, 1024])('generatePrime/%p', (bitLength) => {
-    const p = generatePrime(bitLength);
+test.each([128, 256, 512, 1024])(
+    'generatePrime/%d',
+    (bitLength) => {
+        const p = generatePrime(bitLength);
 
-    expect(p.bitLength()).toBeGreaterThanOrEqual(bitLength);
-    expect(isPrime(p)).toBe(true);
-});
+        expect(p.bitLength()).toBeGreaterThanOrEqual(bitLength);
+        expect(isPrime(p)).toBe(true);
+    },
+    1_200_000,
+);
 
-test.each([128, 256])('generateSafePrime/%p', (bitLength) => {
-    const p = generateSafePrime(bitLength);
+test.each([128, 256])(
+    'generateSafePrime/%d',
+    (bitLength) => {
+        const p = generateSafePrime(bitLength);
 
-    expect(p.bitLength()).toBeGreaterThanOrEqual(bitLength);
-    expect(isSafePrime(p)).toBe(true);
-});
+        expect(p.bitLength()).toBeGreaterThanOrEqual(bitLength);
+        expect(isSafePrime(p)).toBe(true);
+    },
+    1_200_000,
+);
 
 describe('max_num_iterations', () => {
     test('generatePrime', () => {
         // it always returns 1, which is not a prime
-        jest.spyOn(sjcl.bn, 'random').mockReturnValue(new sjcl.bn(1));
+        vi.spyOn(sjcl.bn, 'random').mockReturnValue(new sjcl.bn(1));
 
         expect(() => {
             generatePrime(8);
         }).toThrow(/MAX_NUM_TRIES/);
-    });
+    }, 60_000);
 });

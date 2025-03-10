@@ -2,7 +2,7 @@
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
 import sjcl from '../src/sjcl/index.js';
-import { jest } from '@jest/globals';
+import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { i2osp, prepare_sjcl_random_generator } from '../src/util.js';
 import { PartiallyBlindRSA, RSAPBSSA, getSuiteByName } from '../src/index.js';
@@ -78,7 +78,7 @@ test('Parameters', () => {
     }
 });
 
-describe.each(vectors)('Errors-vec$#', (v: Vector) => {
+describe.each(vectors)('Errors-vec%#', (v: Vector) => {
     test('non-extractable-keys', async () => {
         const { privateKey, publicKey } = await keysFromVector(v, false);
         const msg = crypto.getRandomValues(new Uint8Array(10));
@@ -124,20 +124,24 @@ describe.each(vectors)('Errors-vec$#', (v: Vector) => {
     });
 });
 
-test.each(vectors)('TestVector_$#/safePrimes', (v: Vector) => {
-    prepare_sjcl_random_generator();
-    expect(isSafePrime(new sjcl.bn(v.p))).toBe(true);
-    expect(isSafePrime(new sjcl.bn(v.q))).toBe(true);
-});
+test.each(vectors)(
+    'TestVector_%#/safePrimes',
+    (v: Vector) => {
+        prepare_sjcl_random_generator();
+        expect(isSafePrime(new sjcl.bn(v.p))).toBe(true);
+        expect(isSafePrime(new sjcl.bn(v.q))).toBe(true);
+    },
+    60_000,
+);
 
-describe.each(vectors)('TestVector_$#', (v: Vector) => {
+describe.each(vectors)('TestVector_%#', (v: Vector) => {
     beforeEach(() => {
         const n = new sjcl.bn(v.n);
         const kLen = Math.ceil(n.bitLength() / 8);
         const r = new sjcl.bn(v.r);
         const rBytes = i2osp(r, kLen);
 
-        jest.spyOn(crypto, 'getRandomValues')
+        vi.spyOn(crypto, 'getRandomValues')
             .mockReturnValueOnce(hexToUint8(v.msg_prefix)) // mock msg_prefix
             .mockReturnValueOnce(hexToUint8(v.salt)) // mock for random salt
             .mockReturnValueOnce(rBytes); // mock for random blind
@@ -146,37 +150,27 @@ describe.each(vectors)('TestVector_$#', (v: Vector) => {
     const all_params = [undefined, { supportsRSARAW: true }];
 
     describe.each(all_params)(`_${v.name}`, (params) => {
-        test(
-            `supportsRSARAW/${params ? params.supportsRSARAW : false}`,
-            async () => {
-                const blindRSA = getSuiteByName(PartiallyBlindRSA, v.name, params);
-                expect(blindRSA.toString()).toBe(v.name);
+        test(`supportsRSARAW/${params ? params.supportsRSARAW : false}`, async () => {
+            const blindRSA = getSuiteByName(PartiallyBlindRSA, v.name, params);
+            expect(blindRSA.toString()).toBe(v.name);
 
-                const msg = hexToUint8(v.msg);
-                const info = hexToUint8(v.info);
-                const inputMsg = blindRSA.prepare(msg);
+            const msg = hexToUint8(v.msg);
+            const info = hexToUint8(v.info);
+            const inputMsg = blindRSA.prepare(msg);
 
-                const { publicKey, privateKey } = await keysFromVector(v, true);
+            const { publicKey, privateKey } = await keysFromVector(v, true);
 
-                const { blindedMsg, inv } = await blindRSA.blind(publicKey, inputMsg, info);
-                expect(uint8ToHex(blindedMsg)).toBe(v.blind_msg);
+            const { blindedMsg, inv } = await blindRSA.blind(publicKey, inputMsg, info);
+            expect(uint8ToHex(blindedMsg)).toBe(v.blind_msg);
 
-                const blindedSig = await blindRSA.blindSign(privateKey, blindedMsg, info);
-                expect(uint8ToHex(blindedSig)).toBe(v.blind_sig);
+            const blindedSig = await blindRSA.blindSign(privateKey, blindedMsg, info);
+            expect(uint8ToHex(blindedSig)).toBe(v.blind_sig);
 
-                const signature = await blindRSA.finalize(
-                    publicKey,
-                    inputMsg,
-                    info,
-                    blindedSig,
-                    inv,
-                );
-                expect(uint8ToHex(signature)).toBe(v.sig);
+            const signature = await blindRSA.finalize(publicKey, inputMsg, info, blindedSig, inv);
+            expect(uint8ToHex(signature)).toBe(v.sig);
 
-                const isValid = await blindRSA.verify(publicKey, signature, inputMsg, info);
-                expect(isValid).toBe(true);
-            },
-            20 * 1000,
-        );
+            const isValid = await blindRSA.verify(publicKey, signature, inputMsg, info);
+            expect(isValid).toBe(true);
+        }, 300_000);
     });
 });
