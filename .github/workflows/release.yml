@@ -10,6 +10,8 @@ jobs:
     if: ${{ github.repository_owner == 'cloudflare' }}
     name: Publishing to npmjs registry
     runs-on: ubuntu-latest
+    permissions:
+      contents: read
     steps:
       - name: Checking out
         uses: actions/checkout@v4
