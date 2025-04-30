@@ -2969,7 +2969,7 @@ sjcl.codec.arrayBuffer = {
 };
 
 if(typeof module !== 'undefined' && module.exports){
-  module.exports = sjcl;
+  module = {exports: sjcl};
 }
 if (typeof define === "function") {
     define([], function () {
