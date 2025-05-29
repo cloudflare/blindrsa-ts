@@ -2,6 +2,7 @@
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 import sjcl from '../src/sjcl/index.js';
 import { generatePrimeSync } from 'node:crypto';
+import assert from 'node:assert/strict';
 
 import type { PartiallyBlindRSA } from '../src/index.js';
 
@@ -137,4 +138,5 @@ export async function partiallyBlindRSAExample(suite: PartiallyBlindRSA) {
         `signature: (${signature.length} bytes): ${Buffer.from(signature).toString('hex')}`,
     );
     console.log(`Signature is valid? ${isValid}\n`);
+    assert(isValid, 'Invalid PartiallyBlindRSA signature');
 }
