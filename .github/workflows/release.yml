@@ -18,7 +18,7 @@ jobs:
           fetch-depth: 0
 
       - name: Use Node.js v22
-        uses: actions/setup-node@v5
+        uses: actions/setup-node@v6
         with:
           node-version: 22
           # registry-url is required to correctly setup authentication per https://docs.github.com/en/actions/publishing-packages/publishing-nodejs-packages#publishing-packages-to-the-npm-registry
