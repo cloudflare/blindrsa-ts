@@ -1,6 +1,7 @@
 // Copyright (c) 2023 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
+import assert from 'node:assert/strict';
 import type { BlindRSA } from '../src/index.js';
 
 // Example: BlindRSA protocol execution.
@@ -57,4 +58,5 @@ export async function blindRSAExample(suite: BlindRSA) {
         `signature: (${signature.length} bytes): ${Buffer.from(signature).toString('hex')}`,
     );
     console.log(`Signature is valid? ${isValid}\n`);
+    assert(isValid, 'Invalid BlindRSA signature');
 }

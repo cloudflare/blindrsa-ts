@@ -281,9 +281,12 @@ export class PartiallyBlindRSA {
 
     static async generateKey(
         algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
-        generateSafePrimeSync: (length: number) => sjcl.BigNumber | bigint = generateSafePrime,
+        generateSafePrimeSync?: (modulusLength: number) => bigint,
     ): Promise<CryptoKeyPair> {
-        prepare_sjcl_random_generator();
+        if (!generateSafePrimeSync) {
+            prepare_sjcl_random_generator();
+            generateSafePrimeSync = (l) => BigInt(generateSafePrime(l).toString());
+        }
 
         // 1. p = SafePrime(bits / 2)
         // 2. q = SafePrime(bits / 2)
@@ -293,8 +296,8 @@ export class PartiallyBlindRSA {
         do {
             const p_tmp = generateSafePrimeSync(algorithm.modulusLength >> 1);
             const q_tmp = generateSafePrimeSync(algorithm.modulusLength >> 1);
-            p = typeof p_tmp === 'bigint' ? new sjcl.bn(p_tmp.toString(16)) : p_tmp;
-            q = typeof q_tmp === 'bigint' ? new sjcl.bn(q_tmp.toString(16)) : q_tmp;
+            p = new sjcl.bn(p_tmp.toString(16));
+            q = new sjcl.bn(q_tmp.toString(16));
         } while (p.equals(q));
 
         // 4. phi = (p - 1) * (q - 1)
@@ -332,7 +335,7 @@ export class PartiallyBlindRSA {
 
     generateKey(
         algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent'>,
-        generateSafePrimeSync: (length: number) => sjcl.BigNumber | bigint = generateSafePrime,
+        generateSafePrimeSync?: (modulusLength: number) => bigint,
     ): Promise<CryptoKeyPair> {
         return PartiallyBlindRSA.generateKey(
             { ...algorithm, hash: this.params.hash },

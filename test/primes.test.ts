@@ -1,7 +1,7 @@
 // Copyright (c) 2024 Cloudflare, Inc.
 // Licensed under the Apache-2.0 license found in the LICENSE file or at https://opensource.org/licenses/Apache-2.0
 
-import { beforeEach, describe, expect, test, vi } from 'vitest';
+import { beforeAll, beforeEach, describe, expect, test, vi } from 'vitest';
 
 import sjcl from '../src/sjcl/index.js';
 import { prepare_sjcl_random_generator } from '../src/util.js';
@@ -63,27 +63,28 @@ const SAFE_PRIMES = [
 beforeEach(prepare_sjcl_random_generator);
 
 test.each(PRIME)('isPrime/%#', (p) => {
-    expect(isPrime(new sjcl.bn(p))).toBe(true);
+    expect(isPrime(BigInt(p))).toBe(true);
 });
 
 test.each(A074379)('notPrimeCarmichael/%#', (p) => {
-    expect(isPrime(new sjcl.bn(p))).toBe(false);
+    expect(isPrime(BigInt(p))).toBe(false);
 });
 
 test.each(COMPOSITE)('notPrime/%#', (p) => {
-    expect(isPrime(new sjcl.bn(p))).toBe(false);
+    expect(isPrime(BigInt(p))).toBe(false);
 });
 
 test.each(SAFE_PRIMES)('isSafePrime/%#', (p) => {
-    expect(isSafePrime(new sjcl.bn(p))).toBe(true);
+    expect(isSafePrime(BigInt(p))).toBe(true);
 });
 
 test.each([128, 256, 512, 1024])(
     'generatePrime/%d',
     (bitLength) => {
+        const twoToN1 = BigInt(1) << BigInt(bitLength - 1);
         const p = generatePrime(bitLength);
 
-        expect(p.bitLength()).toBeGreaterThanOrEqual(bitLength);
+        expect(p).toBeGreaterThan(twoToN1);
         expect(isPrime(p)).toBe(true);
     },
     1_200_000,
@@ -92,21 +93,26 @@ test.each([128, 256, 512, 1024])(
 test.each([128, 256])(
     'generateSafePrime/%d',
     (bitLength) => {
+        const twoToN1 = BigInt(1) << BigInt(bitLength - 1);
         const p = generateSafePrime(bitLength);
 
-        expect(p.bitLength()).toBeGreaterThanOrEqual(bitLength);
+        expect(p).toBeGreaterThan(twoToN1);
         expect(isSafePrime(p)).toBe(true);
     },
     1_200_000,
 );
 
 describe('max_num_iterations', () => {
-    test('generatePrime', () => {
+    beforeAll(() => {
         // it always returns 1, which is not a prime
         vi.spyOn(sjcl.bn, 'random').mockReturnValue(new sjcl.bn(1));
+    });
 
-        expect(() => {
-            generatePrime(8);
-        }).toThrow(/MAX_NUM_TRIES/);
+    test('generatePrime', () => {
+        expect(() => generatePrime(8)).toThrow(/MAX_NUM_TRIES/);
+    }, 60_000);
+
+    test('generateSafePrime', () => {
+        expect(() => generateSafePrime(8)).toThrow(/MAX_NUM_TRIES/);
     }, 60_000);
 });

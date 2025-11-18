@@ -128,8 +128,8 @@ test.each(vectors)(
     'TestVector_%#/safePrimes',
     (v: Vector) => {
         prepare_sjcl_random_generator();
-        expect(isSafePrime(new sjcl.bn(v.p))).toBe(true);
-        expect(isSafePrime(new sjcl.bn(v.q))).toBe(true);
+        expect(isSafePrime(BigInt('0x' + v.p))).toBe(true);
+        expect(isSafePrime(BigInt('0x' + v.q))).toBe(true);
     },
     60_000,
 );

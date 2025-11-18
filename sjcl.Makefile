@@ -8,12 +8,13 @@ SJCL_OUTPUT_PATH=$(CURDIR)/src/sjcl
 
 .ONESHELL:
 
-all: ${SJCL_OUTPUT_PATH}/index.js ${SJCL_OUTPUT_PATH}/index.d.ts
+all: clean ${SJCL_OUTPUT_PATH}/index.js ${SJCL_OUTPUT_PATH}/index.d.ts
 
 ${SJCL_OUTPUT_PATH}/index.js:
 	cd node_modules/sjcl
 	./configure --without-all --with-bn --with-convenience --compress=none \
-                --with-codecBytes --with-codecHex --with-codecArrayBuffer
+                --with-codecBytes --with-codecHex --with-codecArrayBuffer \
+                --no-export
 	make
 	cp sjcl.js $@
 	echo "export default sjcl;" >> $@
