@@ -1,9 +1,9 @@
 {
     "compilerOptions": {
-        "target": "ES2022",
-        "module": "ES2022",
+        "target": "ES2023",
+        "module": "nodenext",
         "lib": [
-            "ES2022",
+            "ES2023",
             "dom"
         ],
         "composite": true,
@@ -18,7 +18,7 @@
         "noUnusedParameters": true,
         "noImplicitReturns": true,
         "noFallthroughCasesInSwitch": true,
-        "moduleResolution": "bundler",
+        "moduleResolution": "nodenext",
         "esModuleInterop": true,
         "experimentalDecorators": true,
         "emitDecoratorMetadata": true,

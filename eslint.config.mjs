@@ -2,7 +2,7 @@ import eslintJS from '@eslint/js'
 import eslintTS from 'typescript-eslint'
 import pluginPrettier from 'eslint-plugin-prettier/recommended'
 import pluginSecurity from 'eslint-plugin-security'
-import pluginVitest from 'eslint-plugin-vitest'
+import pluginVitest from '@vitest/eslint-plugin'
 
 export default eslintTS.config(
     eslintJS.configs.recommended,

@@ -272,7 +272,13 @@ export class PartiallyBlindRSA {
         // 8. If result = "valid signature", output sig, else
         //    raise "invalid signature" and stop
         const algorithm = { name: PartiallyBlindRSA.NAME, saltLength: this.params.saltLength };
-        if (!(await crypto.subtle.verify(algorithm, pk_derived_key, sig, msg_prime))) {
+        const ok = await crypto.subtle.verify(
+            algorithm,
+            pk_derived_key,
+            sig.slice().buffer,
+            msg_prime,
+        );
+        if (!ok) {
             throw new Error('invalid signature');
         }
 
@@ -380,7 +386,7 @@ export class PartiallyBlindRSA {
         return crypto.subtle.verify(
             { name: PartiallyBlindRSA.NAME, saltLength: this.params.saltLength },
             pk_derived_key,
-            signature,
+            signature.slice().buffer,
             msg_prime,
         );
     }
@@ -405,7 +411,7 @@ export class PartiallyBlindRSA {
                     name: 'HKDF',
                     hash: this.params.hash,
                     info: new TextEncoder().encode('PBRSA'),
-                    salt: hkdf_salt,
+                    salt: hkdf_salt.slice().buffer,
                 },
                 await crypto.subtle.importKey('raw', hkdf_input, 'HKDF', false, ['deriveBits']),
                 hkdf_len * 8,

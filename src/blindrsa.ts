@@ -222,7 +222,13 @@ export class BlindRSA {
         // 6. If result = "valid signature", output sig, else
         //    raise "invalid signature" and stop
         const algorithm = { name: BlindRSA.NAME, saltLength: this.params.saltLength };
-        if (!(await crypto.subtle.verify(algorithm, publicKey, sig, msg))) {
+        const ok = await crypto.subtle.verify(
+            algorithm,
+            publicKey,
+            sig.slice().buffer,
+            msg.slice().buffer,
+        );
+        if (!ok) {
             throw new Error('invalid signature');
         }
 
@@ -248,8 +254,8 @@ export class BlindRSA {
         return crypto.subtle.verify(
             { name: BlindRSA.NAME, saltLength: this.params.saltLength },
             publicKey,
-            signature,
-            message,
+            signature.slice().buffer,
+            message.slice().buffer,
         );
     }
 }

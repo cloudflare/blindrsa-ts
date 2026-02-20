@@ -45,7 +45,7 @@ export function int_to_bytes(num: number, byteLength: number): Uint8Array {
     return i2osp(new sjcl.bn(num), byteLength);
 }
 
-export function joinAll(a: Uint8Array[]): Uint8Array {
+export function joinAll(a: Uint8Array[]): Uint8Array<ArrayBuffer> {
     let size = 0;
     for (const ai of a) {
         size += ai.length;
@@ -125,7 +125,9 @@ async function mgf1(h: HashParams, seed: Uint8Array, mLen: number): Promise<Uint
         //         string T:
         //
         //            T = T || Hash(mgfSeed || C) .
-        const hash = new Uint8Array(await crypto.subtle.digest(h.name, joinAll([seed, counter])));
+        const hash = new Uint8Array(
+            await crypto.subtle.digest(h.name, joinAll([seed, counter]).slice().buffer),
+        );
         T = joinAll([T, hash]);
         incCounter(counter);
     }
@@ -168,7 +170,7 @@ export async function emsa_pss_encode(
     //     long" and stop.
     //
     // 2.  Let mHash = Hash(M), an octet string of length hLen.
-    const mHash = new Uint8Array(await crypto.subtle.digest(hash, msg));
+    const mHash = new Uint8Array(await crypto.subtle.digest(hash, msg.slice().buffer));
     // 3.  If emLen < hLen + sLen + 2, output "encoding error" and stop.
     if (emLen < hLen + sLen + 2) {
         throw new Error('encoding error');
@@ -184,7 +186,7 @@ export async function emsa_pss_encode(
     //
     const mPrime = joinAll([new Uint8Array(8), mHash, salt]);
     // 6.  Let H = Hash(M'), an octet string of length hLen.
-    const h = new Uint8Array(await crypto.subtle.digest(hash, mPrime));
+    const h = new Uint8Array(await crypto.subtle.digest(hash, mPrime.slice().buffer));
     // 7.  Generate an octet string PS consisting of emLen - sLen - hLen - 2
     //     zero octets. The length of PS may be 0.
     const ps = new Uint8Array(emLen - sLen - hLen - 2);
@@ -331,7 +333,7 @@ export async function rsaRawBlingSign(
     const signature = await crypto.subtle.sign(
         { name: privateKey.algorithm.name },
         privateKey,
-        blindMsg,
+        blindMsg.slice().buffer,
     );
     return new Uint8Array(signature);
 }

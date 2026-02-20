@@ -8,7 +8,7 @@ import sjcl from '../src/sjcl/index.js';
 
 // Test vector in file pss_test.go from: https://cs.opensource.google/go/go/+/refs/tags/go1.18.2:src/crypto/rsa/pss_test.go
 // Test vector in file pss-int.txt from: ftp://ftp.rsasecurity.com/pub/pkcs/pkcs-1/pkcs-1v2-1-vec.zip
-import vector from './testdata/emsa_pss_vectors.json';
+import vector from './testdata/emsa_pss_vectors.json' with { type: 'json' };
 import { hexToUint8 } from './util.js';
 
 test('emsa_pss_encode', async () => {
