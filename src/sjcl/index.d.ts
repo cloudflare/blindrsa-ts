@@ -1,4 +1,4 @@
-export = sjcl;
+export default sjcl;
 export as namespace sjcl;
 
 declare namespace sjcl {

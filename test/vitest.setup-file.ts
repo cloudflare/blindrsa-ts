@@ -3,7 +3,7 @@
 
 // Mocking crypto with NodeJS WebCrypto module only for tests.
 import { webcrypto } from 'node:crypto';
-import { RSABSSA } from '../src';
+import { RSABSSA } from '../src/index.js';
 
 if (typeof crypto === 'undefined') {
     Object.assign(global, { crypto: webcrypto });
@@ -17,7 +17,7 @@ const parentSign = crypto.subtle.sign;
 async function mockSign(
     algorithm: AlgorithmIdentifier | RsaPssParams | EcdsaParams,
     key: CryptoKey,
-    data: Uint8Array,
+    data: ArrayBuffer,
 ): Promise<ArrayBuffer> {
     if (
         algorithm === 'RSA-RAW' ||
@@ -30,7 +30,9 @@ async function mockSign(
         key.algorithm.name = 'RSA-PSS';
         try {
             // await is needed here because if the promised is returned, the algorithmName could be restored before the key is used, causing an error
-            return await RSABSSA.SHA384.PSSZero.Deterministic().blindSign(key, data);
+            const data_u8 = new Uint8Array(data);
+            const blindSig = await RSABSSA.SHA384.PSSZero.Deterministic().blindSign(key, data_u8);
+            return blindSig.slice().buffer;
         } finally {
             key.algorithm.name = algorithmName;
         }

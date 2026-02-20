@@ -11,7 +11,7 @@ import { isSafePrime } from '../src/prime.js';
 import { hexNumToB64URL, hexToUint8, uint8ToHex } from './util.js';
 // Test vectors
 // https://datatracker.ietf.org/doc/html/draft-amjad-cfrg-partially-blind-rsa-02#name-test-vectors
-import vectors from './testdata/test_vectors_partially_blind_rsa_draft_2.json';
+import vectors from './testdata/test_vectors_partially_blind_rsa_draft_2.json' with { type: 'json' };
 
 type Vector = (typeof vectors)[number];
 

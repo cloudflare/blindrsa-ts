@@ -9,7 +9,7 @@ import { BlindRSA, RSABSSA, getSuiteByName } from '../src/index.js';
 
 // Test vectors
 // https://www.rfc-editor.org/rfc/rfc9474.html#name-test-vectors
-import vectors from './testdata/test_vectors_rfc9474.json';
+import vectors from './testdata/test_vectors_rfc9474.json' with { type: 'json' };
 import { hexNumToB64URL, hexToUint8, uint8ToHex } from './util.js';
 
 type Vector = (typeof vectors)[number];

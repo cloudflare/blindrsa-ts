@@ -5,6 +5,7 @@
 # $ make -f sjcl.Makefile
 
 SJCL_OUTPUT_PATH=$(CURDIR)/src/sjcl
+TYPES_SJCL_VERSION=1.0.34
 
 .ONESHELL:
 
@@ -13,14 +14,15 @@ all: ${SJCL_OUTPUT_PATH}/index.js ${SJCL_OUTPUT_PATH}/index.d.ts
 ${SJCL_OUTPUT_PATH}/index.js:
 	cd node_modules/sjcl
 	./configure --without-all --with-bn --with-convenience --compress=none \
-                --with-codecBytes --with-codecHex --with-codecArrayBuffer
+                --with-codecBytes --with-codecHex --with-codecArrayBuffer --no-export
 	make
 	cp sjcl.js $@
 	echo "export default sjcl;" >> $@
 
+
 ${SJCL_OUTPUT_PATH}/index.d.ts:
-	npm i -D @types/sjcl
-	cp node_modules/@types/sjcl/index.d.ts $@
+	npm i -D @types/sjcl@${TYPES_SJCL_VERSION}
+	sed "s/export = sjcl/export default sjcl/" node_modules/@types/sjcl/index.d.ts > $@
 	npm un -D @types/sjcl
 
 clean:
