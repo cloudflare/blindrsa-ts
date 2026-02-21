@@ -15,10 +15,10 @@ jobs:
     runs-on: ubuntu-latest
     strategy:
       matrix:
-        node: [24, 22]
+        node: [24]
     steps:
       - name: Checking out
-        uses: actions/checkout@v5
+        uses: actions/checkout@v6
 
       - name: Use Node.js v${{ matrix.node }}
         uses: actions/setup-node@v6
