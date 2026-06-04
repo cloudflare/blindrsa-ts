@@ -66,17 +66,20 @@ export function generatePrime(bitLength: number, NUM_TRIES_PRIMALITY = 20): sjcl
     const MAX_NUM_TRIES = NUM_TRIES_PRIMALITY * bitLength ** 4;
 
     // 2^b
-    const twoToN = new sjcl.bn(2);
+    const twoToN = new sjcl.bn(1);
     for (let i = 0; i < bitLength; i++) {
         twoToN.doubleM();
     }
     twoToN.normalize();
 
+    const twoToNMinusOne = new sjcl.bn(twoToN).halveM().normalize();
+
     let prime: sjcl.BigNumber;
     let i = 0;
 
     do {
-        prime = sjcl.bn.random(twoToN, SJCL_PARANOIA);
+        prime = sjcl.bn.random(twoToNMinusOne, SJCL_PARANOIA);
+        prime = prime.addM(twoToNMinusOne).normalize();
         if ((prime.getLimb(0) & 0x1) == 0) {
             prime = prime.addM(1).normalize();
         }

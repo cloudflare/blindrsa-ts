@@ -83,7 +83,7 @@ test.each([128, 256, 512, 1024])(
     (bitLength) => {
         const p = generatePrime(bitLength);
 
-        expect(p.bitLength()).toBeGreaterThanOrEqual(bitLength);
+        expect(p.bitLength()).toBe(bitLength);
         expect(isPrime(p)).toBe(true);
     },
     1_200_000,
@@ -94,7 +94,7 @@ test.each([128, 256])(
     (bitLength) => {
         const p = generateSafePrime(bitLength);
 
-        expect(p.bitLength()).toBeGreaterThanOrEqual(bitLength);
+        expect(p.bitLength()).toBe(bitLength);
         expect(isSafePrime(p)).toBe(true);
     },
     1_200_000,

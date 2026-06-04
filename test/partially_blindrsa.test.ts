@@ -78,6 +78,36 @@ test('Parameters', () => {
     }
 });
 
+test.each([2, 513])('generateKey/rejects invalid modulus length/%d', async (modulusLength) => {
+    await expect(
+        PartiallyBlindRSA.generateKey({
+            modulusLength,
+            publicExponent: Uint8Array.of(0x01, 0x00, 0x01),
+            hash: 'SHA-384',
+        }),
+    ).rejects.toThrow('modulusLength must be an even number greater than or equal to 4');
+});
+
+test('generateKey/stops retrying invalid bigint safe-prime hook', async () => {
+    let primeCount = 0;
+
+    await expect(
+        PartiallyBlindRSA.generateKey(
+            {
+                modulusLength: 4,
+                publicExponent: Uint8Array.of(0x01, 0x00, 0x01),
+                hash: 'SHA-384',
+            },
+            () => {
+                primeCount++;
+                return 2n;
+            },
+        ),
+    ).rejects.toThrow('generateKey reached MAX_NUM_TRIES=16');
+
+    expect(primeCount).toBe(32);
+});
+
 describe.each(vectors)('Errors-vec%#', (v: Vector) => {
     test('non-extractable-keys', async () => {
         const { privateKey, publicKey } = await keysFromVector(v, false);

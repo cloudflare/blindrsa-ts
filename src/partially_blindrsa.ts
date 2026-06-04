@@ -289,6 +289,10 @@ export class PartiallyBlindRSA {
         algorithm: Pick<RsaHashedKeyGenParams, 'modulusLength' | 'publicExponent' | 'hash'>,
         generateSafePrimeSync: (length: number) => sjcl.BigNumber | bigint = generateSafePrime,
     ): Promise<CryptoKeyPair> {
+        if (algorithm.modulusLength % 2 !== 0 || algorithm.modulusLength < 4) {
+            throw new Error('modulusLength must be an even number greater than or equal to 4');
+        }
+
         prepare_sjcl_random_generator();
 
         // 1. p = SafePrime(bits / 2)
@@ -296,12 +300,28 @@ export class PartiallyBlindRSA {
         // 3. while p == q, go to step 2.
         let p: sjcl.BigNumber;
         let q: sjcl.BigNumber;
+        let n: sjcl.BigNumber;
+        const primeBitLength = algorithm.modulusLength >> 1;
+        const MAX_NUM_TRIES = algorithm.modulusLength ** 2;
+        let validKeySize = false;
+        let i = 0;
         do {
-            const p_tmp = generateSafePrimeSync(algorithm.modulusLength >> 1);
-            const q_tmp = generateSafePrimeSync(algorithm.modulusLength >> 1);
-            p = typeof p_tmp === 'bigint' ? new sjcl.bn(p_tmp.toString(16)) : p_tmp;
-            q = typeof q_tmp === 'bigint' ? new sjcl.bn(q_tmp.toString(16)) : q_tmp;
-        } while (p.equals(q));
+            const p_tmp = generateSafePrimeSync(primeBitLength);
+            const q_tmp = generateSafePrimeSync(primeBitLength);
+            p = typeof p_tmp === 'bigint' ? new sjcl.bn('0x' + p_tmp.toString(16)) : p_tmp;
+            q = typeof q_tmp === 'bigint' ? new sjcl.bn('0x' + q_tmp.toString(16)) : q_tmp;
+            n = p.mul(q);
+            validKeySize =
+                !p.equals(q) &&
+                p.bitLength() === primeBitLength &&
+                q.bitLength() === primeBitLength &&
+                n.bitLength() === algorithm.modulusLength;
+            i++;
+        } while (!validKeySize && i < MAX_NUM_TRIES);
+
+        if (!validKeySize) {
+            throw new Error(`generateKey reached MAX_NUM_TRIES=${MAX_NUM_TRIES}`);
+        }
 
         // 4. phi = (p - 1) * (q - 1)
         const phi = p.sub(1).mul(q.sub(1));
@@ -319,8 +339,6 @@ export class PartiallyBlindRSA {
         const d = inverseMod(e, phi);
 
         // 7. n = p * q
-        const n = p.mul(q);
-
         // 7. sk = (n, p, q, phi, d)
         const sk: BigSecretKey = { n, p, q, d };
         // 8. pk = (n, e)
