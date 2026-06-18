@@ -298,6 +298,7 @@ export class PartiallyBlindRSA {
         // 1. p = SafePrime(bits / 2)
         // 2. q = SafePrime(bits / 2)
         // 3. while p == q, go to step 2.
+        // Also retry if their product is one bit short of the requested modulus length.
         let p: sjcl.BigNumber;
         let q: sjcl.BigNumber;
         let n: sjcl.BigNumber;
@@ -338,7 +339,6 @@ export class PartiallyBlindRSA {
         // TODO: replace this applying Chinese Remainder Theorem.
         const d = inverseMod(e, phi);
 
-        // 7. n = p * q
         // 7. sk = (n, p, q, phi, d)
         const sk: BigSecretKey = { n, p, q, d };
         // 8. pk = (n, e)

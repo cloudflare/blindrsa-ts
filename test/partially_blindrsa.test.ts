@@ -78,7 +78,7 @@ test('Parameters', () => {
     }
 });
 
-test.each([2, 513])('generateKey/rejects invalid modulus length/%d', async (modulusLength) => {
+test.each([2, 3, 513])('generateKey/rejects invalid modulus length/%d', async (modulusLength) => {
     await expect(
         PartiallyBlindRSA.generateKey({
             modulusLength,
