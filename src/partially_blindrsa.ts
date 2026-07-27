@@ -303,6 +303,8 @@ export class PartiallyBlindRSA {
         let q: sjcl.BigNumber;
         let n: sjcl.BigNumber;
         const primeBitLength = algorithm.modulusLength >> 1;
+        const minimumModulus = new sjcl.bn(2).power(algorithm.modulusLength - 1);
+        const maximumModulus = minimumModulus.copy().doubleM();
         const MAX_NUM_TRIES = algorithm.modulusLength ** 2;
         let validKeySize = false;
         let i = 0;
@@ -313,10 +315,7 @@ export class PartiallyBlindRSA {
             q = typeof q_tmp === 'bigint' ? new sjcl.bn('0x' + q_tmp.toString(16)) : q_tmp;
             n = p.mul(q);
             validKeySize =
-                !p.equals(q) &&
-                p.bitLength() === primeBitLength &&
-                q.bitLength() === primeBitLength &&
-                n.bitLength() === algorithm.modulusLength;
+                !p.equals(q) && n.greaterEquals(minimumModulus) && !n.greaterEquals(maximumModulus);
             i++;
         } while (!validKeySize && i < MAX_NUM_TRIES);
 
