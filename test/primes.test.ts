@@ -62,6 +62,12 @@ const SAFE_PRIMES = [
 
 beforeEach(prepare_sjcl_random_generator);
 
+function expectExactBitLength(n: sjcl.BigNumber, bitLength: number): void {
+    const value = BigInt(n.toString());
+    expect(value).toBeGreaterThanOrEqual(1n << BigInt(bitLength - 1));
+    expect(value).toBeLessThan(1n << BigInt(bitLength));
+}
+
 test.each(PRIME)('isPrime/%#', (p) => {
     expect(isPrime(new sjcl.bn(p))).toBe(true);
 });
@@ -83,7 +89,7 @@ test.each([128, 256, 512, 1024])(
     (bitLength) => {
         const p = generatePrime(bitLength);
 
-        expect(p.bitLength()).toBe(bitLength);
+        expectExactBitLength(p, bitLength);
         expect(isPrime(p)).toBe(true);
     },
     1_200_000,
@@ -94,7 +100,7 @@ test.each([128, 256])(
     (bitLength) => {
         const p = generateSafePrime(bitLength);
 
-        expect(p.bitLength()).toBe(bitLength);
+        expectExactBitLength(p, bitLength);
         expect(isSafePrime(p)).toBe(true);
     },
     1_200_000,
