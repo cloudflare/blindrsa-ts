@@ -1,0 +1,30 @@
+[package]
+name = "blindrsa-wasm"
+version = "0.0.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+description = "WebAssembly client operations for RSAPBSSA, as used by @cloudflare/blindrsa-ts"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+blind-rsa-signatures = { version = "0.17.2", default-features = false }
+wasm-bindgen = "=0.2.126"
+# rand pulls getrandom 0.4 while rsa pulls 0.3; both need their WebAssembly
+# backend enabled explicitly, together with the rustflag in .cargo/config.toml.
+getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[package.metadata.wasm-pack.profile.release]
+# The binaryen shipped with wasm-pack predates bulk memory being on by
+# default, which rustc now emits, so the feature is enabled explicitly.
+wasm-opt = ['-O4', '--enable-bulk-memory']

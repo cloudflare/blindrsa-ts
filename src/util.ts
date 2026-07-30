@@ -207,6 +207,21 @@ export async function emsa_pss_encode(
     return em;
 }
 
+// base^exp mod n, for a positive exponent.
+//
+// sjcl mishandles a base of zero: its Montgomery path builds a number with
+// undefined limbs, and the loose comparison powermod makes against false
+// stringifies it and throws a TypeError. Both RSA primitives accept a
+// representative of zero, which an attacker can supply, so answer that
+// degenerate case directly instead: 0^exp mod n is zero for every exp >= 1,
+// and RSA exponents are always positive.
+function powermod(base: sjcl.BigNumber, exp: sjcl.BigNumber, n: sjcl.BigNumber): sjcl.BigNumber {
+    if (base.equals(0)) {
+        return new sjcl.bn(0);
+    }
+    return base.powermod(exp, n);
+}
+
 // RSAVP1
 // https://www.rfc-editor.org/rfc/rfc3447.html#section-5.2.2
 export function rsavp1(
@@ -219,7 +234,7 @@ export function rsavp1(
         throw new Error('signature representative out of range');
     }
     // 2. Let m = s^e mod n.
-    const m = s.powermod(pkS.e, pkS.n);
+    const m = powermod(s, pkS.e, pkS.n);
     // 3. Output m.
     return m;
 }
@@ -238,7 +253,7 @@ export function rsasp1(
     // 2. The signature representative s is computed as follows.
     //
     //    a. If the first form (n, d) of K is used, let s = m^d mod n.
-    const s = m.powermod(skS.d, skS.n);
+    const s = powermod(m, skS.d, skS.n);
     /* TODO: implement the CRT variant.
     //    b. If the second form (p, q, dP, dQ, qInv) and (r_i, d_i, t_i)
     //       of K is used, proceed as follows:

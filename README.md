@@ -76,12 +76,40 @@ const variants = [
 
 **Optimizations**
 
-By default, this library uses the [WebCrypto API](https://w3c.github.io/webcrypto/). Certain platforms, such as [Cloudflare Workers](https://github.com/cloudflare/workerd/blob/6b63c701e263a311c2a3ce64e2aeada69afc32a1/src/workerd/api/crypto-impl-asymmetric.c%2B%2B#L827-L868), have implemented native operation. These can be enabled by passing `{ supportRSARAW: true }` when retrieving a suite.
+By default, this library uses the [WebCrypto API](https://w3c.github.io/webcrypto/). Certain platforms, such as [Cloudflare Workers](https://github.com/cloudflare/workerd/blob/6b63c701e263a311c2a3ce64e2aeada69afc32a1/src/workerd/api/crypto-impl-asymmetric.c%2B%2B#L827-L868), have implemented native operation. These can be enabled by passing `{ supportsRSARAW: true }` when retrieving a suite.
 At the time of writing, this dedicated optimization is done only for the `BlindSign` operation. Key type does not have to be modified, and will be set to `RSA-RAW` by the library for the time of the operation.
 
 **Partially Blind RSA verification**
 
-This library does not support Partially Blind RSA signature verification in browser. This is due to [`crypto.subtle`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/subtle) implementations not allowing large public exponents required by Partially Blind RSA. You can follow bugs for [Chromium](https://issues.chromium.org/issues/340178598) and [Firefox](https://bugzilla.mozilla.org/show_bug.cgi?id=1896444).
+Partially Blind RSA derives a per-metadata public key whose exponent is about half the size of the modulus. [`crypto.subtle`](https://developer.mozilla.org/en-US/docs/Web/API/Crypto/subtle) implementations limit how large a public exponent may be, so the derived key cannot be used with the WebCrypto RSA operations in browsers: Chromium rejects the key at `importKey`, and Firefox imports it but returns `false` from `verify`. This is independent of the modulus size, because a larger modulus yields a proportionally larger derived exponent. You can follow bugs for [Chromium](https://issues.chromium.org/issues/340178598) and [Firefox](https://bugzilla.mozilla.org/show_bug.cgi?id=1896444).
+
+Both `finalize` and `verify` are affected, since finalization verifies the signature it returns.
+
+To run the client in such an environment, pass the WebAssembly backend, which performs blinding, finalization and verification in the [blind-rsa-signatures](https://github.com/jedisct1/rust-blind-rsa-signatures) Rust crate, the same implementation used by the Rust [Privacy Pass](https://github.com/raphaelrobert/privacypass) library:
+
+```ts
+import { RSAPBSSA } from '@cloudflare/blindrsa-ts';
+import { wasmBackend } from '@cloudflare/blindrsa-ts/wasm';
+
+const backend = await wasmBackend();
+const suite = RSAPBSSA.SHA384.PSS.Randomized({ supportsRSARAW: false, backend });
+```
+
+Without a backend the library uses WebCrypto and SJCL, which stays the default and is the faster path where it works, such as Node.js and Cloudflare Workers.
+
+The backend also matters for speed, not only for browser support: `blind` cannot use WebCrypto on any platform, and the derived exponent makes it far more expensive than an ordinary `65537` operation. Measured on RSA-2048 in Node.js, `blind` takes about 694 ms with SJCL against 44 ms in WebAssembly, and `verify` about 575 ms against 39 ms.
+
+The module is located relative to the loader, which covers Node.js and browsers. Where a module cannot be compiled at runtime, notably Cloudflare Workers, import the `.wasm` yourself and pass it in:
+
+```ts
+import wasmModule from '@cloudflare/blindrsa-ts/wasm/module';
+
+const backend = await wasmBackend(wasmModule);
+```
+
+Key generation and blind signing are not part of the backend; the issuer keeps using WebCrypto and SJCL.
+
+The browser path is covered by tests that run in Chromium through Playwright, including a check that WebCrypto still refuses the derived key, so that a browser fix is noticed rather than assumed.
 
 #### Setup
 
@@ -144,14 +172,22 @@ const isValid = await suite.verify(publicKey, signature, preparedMsg); // true
 
 ### Development
 
-| Task            | NPM scripts          |
-| --------------- | -------------------- |
-| Installing      | `$ npm ci`           |
-| Building        | `$ npm run build`    |
-| Unit Tests      | `$ npm run test`     |
-| Examples        | `$ npm run examples` |
-| Code Linting    | `$ npm run lint`     |
-| Code Formatting | `$ npm run format`   |
+| Task            | NPM scripts              |
+| --------------- | ------------------------ |
+| Installing      | `$ npm ci`               |
+| Building        | `$ npm run build`        |
+| Unit Tests      | `$ npm run test`         |
+| Browser Tests   | `$ npm run test:browser` |
+| Examples        | `$ npm run examples`     |
+| Code Linting    | `$ npm run lint`         |
+| Code Formatting | `$ npm run format`       |
+
+Building and testing compile the WebAssembly backend from `wasm/`, so a Rust toolchain with the `wasm32-unknown-unknown` target and [wasm-pack](https://rustwasm.github.io/wasm-pack/) are required:
+
+```sh
+rustup target add wasm32-unknown-unknown
+cargo install wasm-pack
+```
 
 #### Dependencies
 
@@ -160,6 +196,8 @@ This project uses the Stanford JavaScript Crypto Library [sjcl](https://github.c
 ```sh
 make -f sjcl.Makefile
 ```
+
+The WebAssembly backend is built from [blind-rsa-signatures](https://github.com/jedisct1/rust-blind-rsa-signatures).
 
 ### License
 

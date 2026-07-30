@@ -5,7 +5,12 @@ import sjcl from '../src/sjcl/index.js';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { i2osp, prepare_sjcl_random_generator } from '../src/util.js';
-import { PartiallyBlindRSA, RSAPBSSA, getSuiteByName } from '../src/index.js';
+import {
+    PartiallyBlindRSA,
+    RSAPBSSA,
+    getSuiteByName,
+    type PartiallyBlindRSAPlatformParams,
+} from '../src/index.js';
 import { isSafePrime } from '../src/prime.js';
 
 import { hexNumToB64URL, hexToUint8, uint8ToHex } from './util.js';
@@ -161,7 +166,9 @@ test.each(vectors)(
         expect(isSafePrime(new sjcl.bn(v.p))).toBe(true);
         expect(isSafePrime(new sjcl.bn(v.q))).toBe(true);
     },
-    60_000,
+    // Around 10s on an idle machine, but this shares cores with the prime
+    // generation suite, which stretches it several fold.
+    180_000,
 );
 
 describe.each(vectors)('TestVector_%#', (v: Vector) => {
@@ -177,7 +184,10 @@ describe.each(vectors)('TestVector_%#', (v: Vector) => {
             .mockReturnValueOnce(rBytes); // mock for random blind
     });
 
-    const all_params = [undefined, { supportsRSARAW: true }];
+    const all_params: (PartiallyBlindRSAPlatformParams | undefined)[] = [
+        undefined,
+        { supportsRSARAW: true },
+    ];
 
     describe.each(all_params)(`_${v.name}`, (params) => {
         test(`supportsRSARAW/${params ? params.supportsRSARAW : false}`, async () => {

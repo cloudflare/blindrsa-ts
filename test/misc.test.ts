@@ -3,7 +3,13 @@
 
 import { expect, test, vi } from 'vitest';
 
-import { emsa_pss_encode, is_coprime, random_integer_uniform } from '../src/util.js';
+import {
+    emsa_pss_encode,
+    is_coprime,
+    random_integer_uniform,
+    rsasp1,
+    rsavp1,
+} from '../src/util.js';
 import sjcl from '../src/sjcl/index.js';
 
 // Test vector in file pss_test.go from: https://cs.opensource.google/go/go/+/refs/tags/go1.18.2:src/crypto/rsa/pss_test.go
@@ -21,6 +27,24 @@ test('emsa_pss_encode', async () => {
 
     const encoded = await emsa_pss_encode(msg, 1023, { hash, sLen });
     expect(encoded).toStrictEqual(hexToUint8(vector.expected));
+});
+
+// A representative of zero is in range for both primitives, and an attacker
+// can supply one: a blinded message of zero reaches rsasp1 in blindSign, and a
+// signature of zero reaches rsavp1 when verifying. sjcl's own powermod throws
+// a TypeError on a zero base, so these guard that the primitives answer
+// instead of crashing.
+test('rsavp1/accepts a representative of zero', () => {
+    const n = new sjcl.bn('0xd6930820f71fe517bf3259d14d40209b02a5c0d3d61991c731dd7da39f8d6983');
+    const e = new sjcl.bn(0x10001);
+    expect(rsavp1({ n, e }, new sjcl.bn(0)).equals(0)).toBe(true);
+    expect(() => new sjcl.bn(0).powermod(e, n)).toThrow(TypeError);
+});
+
+test('rsasp1/accepts a representative of zero', () => {
+    const n = new sjcl.bn('0xd6930820f71fe517bf3259d14d40209b02a5c0d3d61991c731dd7da39f8d6983');
+    const d = new sjcl.bn('0x2f0b1c3d4e5f60718293a4b5c6d7e8f90a1b2c3d4e5f60718293a4b5c6d7e8f1');
+    expect(rsasp1({ n, d }, new sjcl.bn(0)).equals(0)).toBe(true);
 });
 
 test('is_coprime', () => {
