@@ -1,0 +1,43 @@
+[package]
+name = "blindrsa-wasm"
+version = "0.0.0"
+edition = "2021"
+license = "Apache-2.0"
+publish = false
+description = "WebAssembly client operations for RSAPBSSA, as used by @cloudflare/blindrsa-ts"
+
+[lib]
+crate-type = ["cdylib", "rlib"]
+
+[dependencies]
+# Pre-release, because rsa 0.10 is: the partially blind RSA support this needs
+# is not in a stable release of either. Only public-key operations are exposed
+# here, so RUSTSEC-2023-0071, a timing channel in RSA decryption, is not
+# reachable. Watched by the cargo-audit job.
+blind-rsa-signatures = { version = "0.17.2", default-features = false }
+wasm-bindgen = "=0.2.126"
+# rand pulls getrandom 0.4 while rsa pulls 0.3; both need their WebAssembly
+# backend enabled explicitly, together with the rustflag in .cargo/config.toml.
+getrandom_03 = { package = "getrandom", version = "0.3", features = ["wasm_js"] }
+getrandom_04 = { package = "getrandom", version = "0.4", features = ["wasm_js"] }
+# SysRng reads the host generator, StdRng is seeded from it per operation.
+rand = { version = "0.10", default-features = false, features = ["std_rng", "sys_rng"] }
+zeroize = { version = "1.9", default-features = false, features = ["alloc"] }
+
+[profile.release]
+opt-level = "z"
+lto = true
+codegen-units = 1
+panic = "abort"
+strip = true
+
+[package.metadata.wasm-pack.profile.release]
+# The binaryen shipped with wasm-pack predates bulk memory being on by
+# default, which rustc now emits, so the feature is enabled explicitly.
+#
+# Which binaryen that is comes from the pinned wasm-pack: 0.13.0 downloads
+# version_117 at build time. Pinning wasm-pack is therefore what makes the
+# shipped module reproducible, along with Cargo.lock and rust-toolchain.toml.
+# wasm-pack prefers a wasm-opt already on PATH, so a build host that has one
+# of another version will not reproduce it.
+wasm-opt = ['-O4', '--enable-bulk-memory']

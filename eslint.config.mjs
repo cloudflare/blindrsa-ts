@@ -12,10 +12,12 @@ export default eslintTS.config(
     {
         ignores: [
             'vitest.config.ts',
+            'vitest.browser.config.ts',
             'eslint.config.mjs',
             'coverage/*',
             'src/sjcl/index.js',
             'src/sjcl/index.d.ts',
+            'src/wasm/pkg/*',
             'lib/*'
         ]
     },

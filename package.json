@@ -12,6 +12,25 @@
     "main": "./lib/src/index.js",
     "module": "./lib/src/index.js",
     "types": "./lib/src/index.d.ts",
+    "exports": {
+        ".": {
+            "types": "./lib/src/index.d.ts",
+            "default": "./lib/src/index.js"
+        },
+        "./wasm": {
+            "node": {
+                "types": "./lib/src/wasm/node.d.ts",
+                "default": "./lib/src/wasm/node.js"
+            },
+            "default": {
+                "types": "./lib/src/wasm/browser.d.ts",
+                "default": "./lib/src/wasm/browser.js"
+            }
+        },
+        "./wasm/module": "./lib/src/wasm/pkg/blindrsa_wasm_bg.wasm",
+        "./lib/*": "./lib/*",
+        "./package.json": "./package.json"
+    },
     "files": [
         "lib/src/**/*.!(tsbuildinfo)"
     ],
@@ -28,13 +47,16 @@
         "node": ">=24"
     },
     "scripts": {
-        "build": "tsc -b && cp src/sjcl/index.d.ts lib/src/sjcl/index.d.ts",
-        "test": "tsc -b test && vitest --run",
+        "build": "npm run build:wasm && tsc -b && cp src/sjcl/index.d.ts lib/src/sjcl/index.d.ts && npm run copy:wasm",
+        "build:wasm": "wasm-pack build wasm --release --target web --out-dir ../src/wasm/pkg -- --locked",
+        "copy:wasm": "mkdir -p lib/src/wasm/pkg && cp src/wasm/pkg/blindrsa_wasm.js src/wasm/pkg/blindrsa_wasm.d.ts src/wasm/pkg/blindrsa_wasm_bg.wasm src/wasm/pkg/blindrsa_wasm_bg.wasm.d.ts lib/src/wasm/pkg/",
+        "test": "npm run build:wasm && tsc -b test && vitest --run",
         "lint": "eslint .",
         "format": "prettier './(src|test|examples)/**/!(*.d).ts' --write",
         "bench": "tsc -b bench && node ./lib/bench/index.js",
         "examples": "tsc -b examples && node ./lib/examples/index.js",
-        "clean": "rimraf lib coverage"
+        "clean": "rimraf lib coverage",
+        "test:browser": "npm run build:wasm && tsc -b test && vitest --run --config vitest.browser.config.ts"
     },
     "dependencies": {
         "sjcl": "1.0.9"
@@ -43,6 +65,8 @@
         "@eslint/js": "9.39.3",
         "@types/benchmark": "2.1.5",
         "@types/node": "25.3.0",
+        "@vitest/browser": "4.0.18",
+        "@vitest/browser-playwright": "4.0.18",
         "@vitest/coverage-v8": "4.0.18",
         "@vitest/eslint-plugin": "1.6.9",
         "benchmark": "2.1.4",
@@ -50,6 +74,7 @@
         "eslint-config-prettier": "10.1.8",
         "eslint-plugin-prettier": "5.5.5",
         "eslint-plugin-security": "4.0.0",
+        "playwright": "1.62.0",
         "prettier": "3.8.1",
         "rimraf": "6.1.3",
         "typescript": "5.8.3",

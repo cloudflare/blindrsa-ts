@@ -1,0 +1,4 @@
+[target.wasm32-unknown-unknown]
+# getrandom needs an explicit backend on wasm32-unknown-unknown. This selects
+# the one that calls crypto.getRandomValues.
+rustflags = ['--cfg', 'getrandom_backend="wasm_js"']

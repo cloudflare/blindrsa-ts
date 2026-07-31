@@ -26,15 +26,33 @@ jobs:
           node-version: ${{ matrix.node }}
           cache: 'npm'
 
+      # The WebAssembly client backend under wasm/ is built from source.
+      - name: Install Rust WebAssembly toolchain
+        run: rustup target add wasm32-unknown-unknown
+
+      - name: Install wasm-pack
+        uses: taiki-e/install-action@v2
+        with:
+          tool: wasm-pack@0.13.0
+
+      - name: Cache Rust build
+        uses: actions/cache@v4
+        with:
+          path: |
+            ~/.cargo/registry
+            ~/.cargo/git
+            wasm/target
+          key: ${{ runner.os }}-cargo-${{ hashFiles('wasm/Cargo.lock', 'wasm/Cargo.toml', 'wasm/src/**') }}
+          restore-keys: ${{ runner.os }}-cargo-
 
       - name: Install NPM dependencies
         run: npm ci
 
-      - name: Check lint
-        run: npm run lint
-
       - name: Check build
         run: npm run build
+
+      - name: Check lint
+        run: npm run lint
 
       - name: Run NPM tests
         run: npm test
@@ -42,3 +60,22 @@ jobs:
       - name: Check examples
         run: npm run examples
 
+  # The Rust dependencies of the WebAssembly backend are pinned by
+  # wasm/Cargo.lock and include pre-releases, so nothing bumps them on its own.
+  audit:
+    name: Audit Rust dependencies
+    runs-on: ubuntu-latest
+    steps:
+      - name: Checking out
+        uses: actions/checkout@v6
+
+      - name: Install cargo-audit
+        uses: taiki-e/install-action@v2
+        with:
+          tool: cargo-audit@0.22.2
+
+      # Advisories that do not apply, and why, are in wasm/.cargo/audit.toml,
+      # which cargo-audit reads from the directory it runs in.
+      - name: Audit
+        run: cargo audit --deny warnings
+        working-directory: wasm

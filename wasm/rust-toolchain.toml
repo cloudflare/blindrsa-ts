@@ -1,0 +1,4 @@
+# Pinned so the published WebAssembly artifact is reproducible from a tag.
+[toolchain]
+channel = "1.96.0"
+targets = ["wasm32-unknown-unknown"]

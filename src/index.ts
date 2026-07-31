@@ -19,9 +19,23 @@ import {
     type BlindRSAParams,
     type BlindRSAPlatformParams,
 } from './blindrsa.js';
-import { PartiallyBlindRSA, type PartiallyBlindRSAPlatformParams } from './partially_blindrsa.js';
+import {
+    PartiallyBlindRSA,
+    type PartiallyBlindRSAParams,
+    type PartiallyBlindRSAPlatformParams,
+} from './partially_blindrsa.js';
+import type { PartiallyBlindRSABackend, PartiallyBlindRSAContext } from './backend.js';
 
-export { BlindRSA, PartiallyBlindRSA, type BlindRSAParams, type BlindRSAPlatformParams };
+export {
+    BlindRSA,
+    PartiallyBlindRSA,
+    type BlindRSAParams,
+    type BlindRSAPlatformParams,
+    type PartiallyBlindRSAParams,
+    type PartiallyBlindRSAPlatformParams,
+    type PartiallyBlindRSABackend,
+    type PartiallyBlindRSAContext,
+};
 
 // Params allows to instantiate the RSABSSA protocol using BlindRSA class
 // with one of the approved variants.
@@ -125,12 +139,15 @@ export const RSAPBSSA = {
     },
 } as const;
 
+// PartiallyBlindRSAPlatformParams is a superset of BlindRSAPlatformParams,
+// so this accepts the options of either protocol. Passing a partially blind
+// option to a BlindRSA suite is harmless: the class ignores it.
 export function getSuiteByName<T>(
     newT: {
-        new (params: BlindRSAParams & BlindRSAPlatformParams): T;
+        new (params: BlindRSAParams & PartiallyBlindRSAPlatformParams): T;
     },
     name: string,
-    params: BlindRSAPlatformParams = { supportsRSARAW: false },
+    params: PartiallyBlindRSAPlatformParams = { supportsRSARAW: false },
 ): T {
     for (const suiteParams of Object.values(Params)) {
         if (name.toLowerCase() === suiteParams.name.toLowerCase()) {
