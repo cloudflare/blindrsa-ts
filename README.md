@@ -102,10 +102,13 @@ The backend also matters for speed, not only for browser support: `blind` cannot
 The module is located relative to the loader, which covers Node.js and browsers. Where a module cannot be compiled at runtime, notably Cloudflare Workers, import the `.wasm` yourself and pass it in:
 
 ```ts
+import { wasmBackend } from '@cloudflare/blindrsa-ts/wasm';
 import wasmModule from '@cloudflare/blindrsa-ts/wasm/module';
 
 const backend = await wasmBackend(wasmModule);
 ```
+
+The backend accepts modulus sizes from 1024 to 4096 bits, in multiples of 64 bits, which covers the sizes RSA keys are generated at in practice. Other sizes are rejected rather than answered wrongly: the exponent derivation of the underlying crate diverges from the draft for them.
 
 Key generation and blind signing are not part of the backend; the issuer keeps using WebCrypto and SJCL.
 

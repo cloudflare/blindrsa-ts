@@ -6,7 +6,7 @@ import { beforeAll, describe, expect, test } from 'vitest';
 
 import { i2osp, joinAll } from '../src/util.js';
 import { PartiallyBlindRSA, getSuiteByName } from '../src/index.js';
-import type { PartiallyBlindRSABackend } from '../src/index.js';
+import type { PartiallyBlindRSABackend, PartiallyBlindRSAContext } from '../src/index.js';
 import { wasmBackend } from '../src/wasm/node.js';
 
 import { hexToUint8, privateKeyFromVector, publicKeyFromVector, uint8ToHex } from './util.js';
@@ -24,6 +24,36 @@ beforeAll(async () => {
 test('wasmBackend/is reused across calls', async () => {
     await expect(wasmBackend()).resolves.toBe(backend);
 });
+
+// A host without entropy has to produce an ordinary error. The generator the
+// crate offers by default panics, which under panic = "abort" is a WebAssembly
+// trap: opaque to the caller, and it abandons the arguments of the call it
+// aborts in linear memory, so a caller retrying in a loop grows it without
+// bound.
+test('blind/reports missing entropy as an error, and recovers', async () => {
+    const v = vectors[0];
+    const ctx = {
+        n: hexToUint8(v.n),
+        e: hexToUint8(v.e),
+        info: hexToUint8(v.info),
+        hash: 'SHA-384',
+        saltLength: 48,
+    };
+    const message = hexToUint8(v.msg);
+    const realCrypto = globalThis.crypto;
+    const setCrypto = (value: Crypto | undefined): void => {
+        Object.defineProperty(globalThis, 'crypto', { value, configurable: true, writable: true });
+    };
+
+    setCrypto(undefined);
+    try {
+        await expect(backend.blind(ctx, message)).rejects.toThrow(/internal error/i);
+    } finally {
+        setCrypto(realCrypto);
+    }
+    // Entropy is drawn per operation, so the next one succeeds.
+    await expect(backend.blind(ctx, message)).resolves.toBeDefined();
+}, 60_000);
 
 describe.each(vectors)('Wasm_%#', (v: Vector) => {
     const msg = hexToUint8(v.msg);
@@ -198,6 +228,37 @@ describe.each(vectors)('Wasm_%#', (v: Vector) => {
         };
         await expect(backend.verify(ctx, inputMsg, sig)).rejects.toThrow();
     });
+
+    // The crate derives the per-metadata exponent with the modulus encoded to
+    // its crypto-bigint precision, which rounds up to whole 64-bit limbs. Where
+    // that adds padding, the derived exponent is not the one the draft
+    // specifies, so no other implementation agrees: signatures verified here
+    // would be rejected elsewhere, and valid ones rejected here. A modulus of
+    // 2056 bits is such a size, and 2048 is not. The backend has to refuse it,
+    // not answer that the signature is bad.
+    test.each([
+        ['verify', (ctx: PartiallyBlindRSAContext) => backend.verify(ctx, inputMsg, sig)],
+        ['blind', (ctx: PartiallyBlindRSAContext) => backend.blind(ctx, inputMsg)],
+        [
+            'finalize',
+            (ctx: PartiallyBlindRSAContext) =>
+                backend.finalize(ctx, inputMsg, hexToUint8(v.blind_sig), inv),
+        ],
+    ])(
+        '%s/reports a modulus that is not a multiple of 64 bits as an error',
+        async (_, operation) => {
+            const ctx = {
+                // 257 bytes: the vector modulus with a byte prepended, so
+                // no longer a whole number of 64-bit limbs.
+                n: joinAll([Uint8Array.of(1), hexToUint8(v.n)]),
+                e: hexToUint8(v.e),
+                info,
+                hash: 'SHA-384',
+                saltLength: 48,
+            };
+            await expect(operation(ctx)).rejects.toThrow();
+        },
+    );
 
     test('finalize/accepts a blinding produced by the default client', async () => {
         const publicKey = await publicKeyFromVector(v);

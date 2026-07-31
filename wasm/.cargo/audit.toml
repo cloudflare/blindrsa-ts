@@ -1,0 +1,9 @@
+[advisories]
+ignore = [
+    # Marvin: a timing side channel in RSA decryption, with no fixed release of
+    # the rsa crate. Not reachable from here. This crate exports blinding,
+    # finalization and verification, all of them public-key operations; nothing
+    # constructs a private key, and neither decryption nor signing is compiled
+    # in. Revisit when rsa 0.10 is released.
+    "RUSTSEC-2023-0071",
+]

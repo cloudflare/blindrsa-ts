@@ -46,7 +46,9 @@ dependencies = [
  "blind-rsa-signatures",
  "getrandom 0.3.4",
  "getrandom 0.4.3",
+ "rand",
  "wasm-bindgen",
+ "zeroize",
 ]
 
 [[package]]

@@ -54,11 +54,17 @@ const backend: PartiallyBlindRSABackend = {
     async blind(ctx: PartiallyBlindRSAContext, preparedMsg: Uint8Array): Promise<BlindOutput> {
         assertSupported(ctx);
         const out = blind(ctx.n, ctx.e, ctx.info, preparedMsg, ctx.saltLength);
-        // Blinded message and inverse, each of modulus length. They are copied
-        // out rather than sliced as views: the inverse is secret and the
+        // Blinded message and inverse, each of modulus length. Split on the
+        // modulus rather than on half the output, so that an unexpected length
+        // is an error here and not part of the secret inverse travelling to
+        // the issuer inside the blinded message.
+        const kLen = ctx.n.length;
+        if (out.length !== 2 * kLen) {
+            throw new Error('backend returned a blinding of the wrong size');
+        }
+        // Copied out rather than sliced as views: the inverse is secret and the
         // blinded message is sent to the issuer, so they must not share a
         // buffer that a caller could serialize whole.
-        const kLen = out.length / 2;
         return { blindedMsg: out.slice(0, kLen), inv: out.slice(kLen) };
     },
 

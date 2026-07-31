@@ -48,7 +48,7 @@
     },
     "scripts": {
         "build": "npm run build:wasm && tsc -b && cp src/sjcl/index.d.ts lib/src/sjcl/index.d.ts && npm run copy:wasm",
-        "build:wasm": "wasm-pack build wasm --release --target web --out-dir ../src/wasm/pkg",
+        "build:wasm": "wasm-pack build wasm --release --target web --out-dir ../src/wasm/pkg -- --locked",
         "copy:wasm": "mkdir -p lib/src/wasm/pkg && cp src/wasm/pkg/blindrsa_wasm.js src/wasm/pkg/blindrsa_wasm.d.ts src/wasm/pkg/blindrsa_wasm_bg.wasm src/wasm/pkg/blindrsa_wasm_bg.wasm.d.ts lib/src/wasm/pkg/",
         "test": "npm run build:wasm && tsc -b test && vitest --run",
         "lint": "eslint .",

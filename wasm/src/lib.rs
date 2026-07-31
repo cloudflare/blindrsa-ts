@@ -22,11 +22,13 @@ use blind_rsa_signatures::pbrsa::PartiallyBlindPublicKey;
 use blind_rsa_signatures::reexports::rsa::traits::PublicKeyParts;
 use blind_rsa_signatures::reexports::rsa::{BoxedUint, RsaPublicKey};
 use blind_rsa_signatures::{
-    BlindMessage, BlindSignature, BlindingResult, Deterministic, Error, SaltMode, Secret, Sha384,
-    Signature,
-    DefaultRng, PSSZero, PSS,
+    BlindMessage, BlindSignature, BlindingResult, Deterministic, Error, PSSZero, SaltMode, Secret,
+    Sha384, Signature, PSS,
 };
+use rand::rngs::{StdRng, SysRng};
+use rand::SeedableRng;
 use wasm_bindgen::prelude::*;
+use zeroize::Zeroize;
 
 /// Public key of a suite, before per-metadata derivation.
 type PbPublicKey<S> = PartiallyBlindPublicKey<Sha384, S, Deterministic>;
@@ -36,10 +38,40 @@ type PbPublicKey<S> = PartiallyBlindPublicKey<Sha384, S, Deterministic>;
 // simply does not verify.
 const MODULUS_BITS: std::ops::RangeInclusive<u32> = 1024..=4096;
 
+/// Seeds a generator from the host for a single operation.
+///
+/// The crate's blinding takes an infallible generator, and the one it offers
+/// panics when the host has no entropy, which under `panic = "abort"` is a
+/// WebAssembly trap: opaque to the caller, and it leaks the arguments of the
+/// call it aborts. Seeding here makes missing entropy an ordinary error
+/// instead.
+///
+/// Seeding per operation also keeps no generator state in linear memory
+/// between operations. An environment that duplicates that memory, as a
+/// snapshotting runtime does, therefore cannot replay a blinding factor, and
+/// repeating one across two messages is enough to link them.
+fn host_rng() -> Result<StdRng, Error> {
+    StdRng::try_from_rng(&mut SysRng).map_err(|_| Error::InternalError)
+}
+
 fn derive<S: SaltMode>(n: &[u8], e: &[u8], info: &[u8]) -> Result<PbPublicKey<S>, Error> {
-    let n = BoxedUint::from_be_slice(n, (n.len() * 8) as u32).map_err(|_| Error::InternalError)?;
+    let n_len = n.len();
+    let n = BoxedUint::from_be_slice(n, (n_len * 8) as u32).map_err(|_| Error::InternalError)?;
+    // `e` is only validated, never used: the derived exponent is a function of
+    // the modulus and the metadata alone, as the draft specifies.
     let e = BoxedUint::from_be_slice(e, (e.len() * 8) as u32).map_err(|_| Error::InternalError)?;
     if !MODULUS_BITS.contains(&n.bits()) {
+        return Err(Error::UnsupportedParameters);
+    }
+    // The crate salts the exponent derivation with the modulus encoded to its
+    // precision, and crypto-bigint rounds precision up to whole limbs. Where
+    // that adds padding the derived exponent, and the length of every value
+    // derived from it, part company with the draft: signatures no other
+    // implementation accepts, and valid ones rejected. Refuse the key rather
+    // than answer wrongly, which for verification means quietly returning
+    // false. In practice this excludes modulus sizes that are not a multiple
+    // of 64 bits.
+    if n.bits_precision() as usize != n_len * 8 {
         return Err(Error::UnsupportedParameters);
     }
     let pk = RsaPublicKey::new(n, e).map_err(|_| Error::UnsupportedParameters)?;
@@ -53,9 +85,28 @@ fn blind_impl<S: SaltMode>(
     prepared_msg: &[u8],
 ) -> Result<Vec<u8>, Error> {
     let derived = derive::<S>(n, e, info)?;
-    let result = derived.blind(&mut DefaultRng, prepared_msg, Some(info))?;
-    let mut out = result.blind_message.to_vec();
-    out.extend_from_slice(&result.secret);
+    let modulus_bytes = derived.as_ref().size();
+    let result = derived.blind(&mut host_rng()?, prepared_msg, Some(info))?;
+    let BlindingResult {
+        blind_message,
+        secret,
+        ..
+    } = result;
+    // The caller splits the two halves apart by modulus length, so a shorter
+    // or longer half would hand part of the secret to the issuer. Nothing in
+    // the crate's signature promises the lengths, so they are checked.
+    if blind_message.0.len() != modulus_bytes || secret.0.len() != modulus_bytes {
+        return Err(Error::InternalError);
+    }
+    let mut secret = secret.0;
+    let mut out = blind_message.0;
+    out.extend_from_slice(&secret);
+    // The secret is the blinding inverse: whoever holds it can link the
+    // issuance. One copy outlives the call whatever happens here, because the
+    // buffer it is returned in is freed by the generated bindings without
+    // being cleared, exactly as a caller storing it keeps one in the
+    // JavaScript heap. This second copy, which nothing needs, does not.
+    secret.zeroize();
     Ok(out)
 }
 
@@ -65,14 +116,18 @@ fn finalize_impl<S: SaltMode>(
     info: &[u8],
     prepared_msg: &[u8],
     blind_sig: &[u8],
-    inv: &[u8],
+    inv: Vec<u8>,
 ) -> Result<Vec<u8>, Error> {
     let derived = derive::<S>(n, e, info)?;
     // The crate carries the blinding secret inside BlindingResult; only the
     // secret is read when finalizing, and it is what this library calls `inv`.
-    let result = BlindingResult {
+    //
+    // Taken by value: the buffer the caller's bytes were copied into is then
+    // this function's to zeroize, rather than one the generated bindings free
+    // with the secret still in it.
+    let mut result = BlindingResult {
         blind_message: BlindMessage(Vec::new()),
-        secret: Secret(inv.to_vec()),
+        secret: Secret(inv),
         msg_randomizer: None,
     };
     let sig = derived.finalize(
@@ -80,8 +135,11 @@ fn finalize_impl<S: SaltMode>(
         &result,
         prepared_msg,
         Some(info),
-    )?;
-    Ok(sig.to_vec())
+    );
+    // Zeroized whatever the outcome: the caller keeps its own copy, and this
+    // one would otherwise outlive the call in linear memory.
+    result.secret.0.zeroize();
+    Ok(sig?.to_vec())
 }
 
 // Separates a bad signature from a bad key: the first is a false result, the
@@ -149,7 +207,7 @@ pub fn finalize(
     info: &[u8],
     prepared_msg: &[u8],
     blind_sig: &[u8],
-    inv: &[u8],
+    inv: Vec<u8>,
     salt_length: usize,
 ) -> Result<Vec<u8>, JsError> {
     by_salt_length!(
@@ -173,6 +231,9 @@ pub fn verify(
     signature: &[u8],
     salt_length: usize,
 ) -> Result<bool, JsError> {
-    by_salt_length!(salt_length, verify_impl(n, e, info, prepared_msg, signature))
-        .map_err(JsError::from)
+    by_salt_length!(
+        salt_length,
+        verify_impl(n, e, info, prepared_msg, signature)
+    )
+    .map_err(JsError::from)
 }
