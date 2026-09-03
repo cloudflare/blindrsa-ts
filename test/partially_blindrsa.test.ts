@@ -5,7 +5,12 @@ import sjcl from '../src/sjcl/index.js';
 import { beforeEach, describe, expect, test, vi } from 'vitest';
 
 import { i2osp, prepare_sjcl_random_generator } from '../src/util.js';
-import { PartiallyBlindRSA, RSAPBSSA, getSuiteByName } from '../src/index.js';
+import {
+    PartiallyBlindRSA,
+    RSAPBSSA,
+    getSuiteByName,
+    type PartiallyBlindRSAPlatformParams,
+} from '../src/index.js';
 import { isSafePrime } from '../src/prime.js';
 
 import { hexNumToB64URL, hexToUint8, uint8ToHex } from './util.js';
@@ -108,6 +113,30 @@ test.each([
     expect(primeCount).toBe(512);
 });
 
+// Node.js returns false here rather than failing, so a valid signature would
+// look invalid. Refusing keeps an unusable environment distinct from a bad
+// signature.
+test('verify/refuses a modulus WebCrypto cannot verify', async () => {
+    const { publicKey } = await crypto.subtle.generateKey(
+        {
+            name: 'RSA-PSS',
+            modulusLength: 4096,
+            publicExponent: Uint8Array.of(0x01, 0x00, 0x01),
+            hash: 'SHA-384',
+        },
+        true,
+        ['sign', 'verify'],
+    );
+    const suite = RSAPBSSA.SHA384.PSS.Randomized();
+    const msg = suite.prepare(crypto.getRandomValues(new Uint8Array(10)));
+    const info = crypto.getRandomValues(new Uint8Array(10));
+    const signature = crypto.getRandomValues(new Uint8Array(512));
+
+    await expect(suite.verify(publicKey, signature, msg, info)).rejects.toThrow(
+        'cannot verify a 4096-bit modulus with WebCrypto',
+    );
+}, 60_000);
+
 describe.each(vectors)('Errors-vec%#', (v: Vector) => {
     test('non-extractable-keys', async () => {
         const { privateKey, publicKey } = await keysFromVector(v, false);
@@ -161,7 +190,9 @@ test.each(vectors)(
         expect(isSafePrime(new sjcl.bn(v.p))).toBe(true);
         expect(isSafePrime(new sjcl.bn(v.q))).toBe(true);
     },
-    60_000,
+    // Around 10s on an idle machine, but this shares cores with the prime
+    // generation suite, which stretches it several fold.
+    180_000,
 );
 
 describe.each(vectors)('TestVector_%#', (v: Vector) => {
@@ -177,7 +208,10 @@ describe.each(vectors)('TestVector_%#', (v: Vector) => {
             .mockReturnValueOnce(rBytes); // mock for random blind
     });
 
-    const all_params = [undefined, { supportsRSARAW: true }];
+    const all_params: (PartiallyBlindRSAPlatformParams | undefined)[] = [
+        undefined,
+        { supportsRSARAW: true },
+    ];
 
     describe.each(all_params)(`_${v.name}`, (params) => {
         test(`supportsRSARAW/${params ? params.supportsRSARAW : false}`, async () => {

@@ -27,6 +27,16 @@ jobs:
                   registry-url: 'https://registry.npmjs.org'
                   cache: 'npm'
 
+            # The WebAssembly client backend under wasm/ is built from source
+            # and shipped in the package, so publishing needs the toolchain.
+            - name: Install Rust WebAssembly toolchain
+              run: rustup target add wasm32-unknown-unknown
+
+            - name: Install wasm-pack
+              uses: taiki-e/install-action@v2
+              with:
+                  tool: wasm-pack@0.13.0
+
             - name: Install NPM dependencies
               run: npm ci
 

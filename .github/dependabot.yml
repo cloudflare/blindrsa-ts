@@ -1,0 +1,8 @@
+version: 2
+updates:
+  # The WebAssembly backend under wasm/ is built from source against pinned
+  # Rust dependencies, some of them pre-releases. Nothing else watches them.
+  - package-ecosystem: cargo
+    directory: /wasm
+    schedule:
+      interval: weekly

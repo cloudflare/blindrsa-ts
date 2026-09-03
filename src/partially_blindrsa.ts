@@ -23,24 +23,49 @@ import {
     type BigKeyPair,
 } from './util.js';
 import { PrepareType, type BlindRSAParams, type BlindRSAPlatformParams } from './blindrsa.js';
+import type { BlindOutput, PartiallyBlindRSABackend, PartiallyBlindRSAContext } from './backend.js';
 
-export type BlindOutput = { blindedMsg: Uint8Array; inv: Uint8Array };
+export type { BlindOutput };
 
 export type PartiallyBlindRSAParams = BlindRSAParams;
 
-export type PartiallyBlindRSAPlatformParams = BlindRSAPlatformParams;
+export interface PartiallyBlindRSAPlatformParams extends BlindRSAPlatformParams {
+    // Runs the client operations somewhere other than WebCrypto and SJCL.
+    //
+    // The metadata-derived public exponent is about half the size of the
+    // modulus, and WebCrypto rejects exponents that large, so `finalize` and
+    // `verify` need this in browsers, on Cloudflare Workers, and in Node.js
+    // above 3072 bits. See @cloudflare/blindrsa-ts/wasm.
+    backend?: PartiallyBlindRSABackend;
+}
 
 export class PartiallyBlindRSA {
     private static readonly NAME = 'RSA-PSS';
+
+    // Above this no WebCrypto implementation verifies the derived key; see
+    // verifyDerived.
+    private static readonly MAX_WEBCRYPTO_MODULUS_BITS = 3072;
 
     constructor(public readonly params: PartiallyBlindRSAParams & PartiallyBlindRSAPlatformParams) {
         switch (params.prepareType) {
             case PrepareType.Deterministic:
             case PrepareType.Randomized:
-                return;
+                break;
             default:
                 assertNever('PrepareType', params.prepareType);
         }
+    }
+
+    // Suite parameters and public key, as a backend consumes them. The
+    // modulus and exponent are the base64url members of an exported JWK.
+    private context(n: string, e: string, info: Uint8Array): PartiallyBlindRSAContext {
+        return {
+            n: new Uint8Array(sjcl.codec.bytes.fromBits(sjcl.codec.base64url.toBits(n))),
+            e: new Uint8Array(sjcl.codec.bytes.fromBits(sjcl.codec.base64url.toBits(e))),
+            info,
+            hash: this.params.hash,
+            saltLength: this.params.saltLength,
+        };
     }
 
     toString(): string {
@@ -95,6 +120,11 @@ export class PartiallyBlindRSA {
         } = await this.extractKeyParams(publicKey, 'public');
         if (!jwkKey.n || !jwkKey.e) {
             throw new Error('key has invalid parameters');
+        }
+
+        const { backend } = this.params;
+        if (backend) {
+            return backend.blind(this.context(jwkKey.n, jwkKey.e, info), msg);
         }
         const n = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.n));
         const e = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.e));
@@ -221,21 +251,27 @@ export class PartiallyBlindRSA {
         if (!jwkKey.e || !jwkKey.n) {
             throw new Error('key has invalid parameters');
         }
+
+        // 0. If len(inv) != kLen, raise "unexpected input size" and stop
+        // 1. If len(blind_sig) != kLen, raise "unexpected input size" and stop
+        //
+        // Checked before dispatching so that both code paths reject the same
+        // inputs with the same error.
+        if (inv.length != kLen || blindSig.length != kLen) {
+            throw new Error('unexpected input size');
+        }
+
+        const { backend } = this.params;
+        if (backend) {
+            return backend.finalize(this.context(jwkKey.n, jwkKey.e, info), msg, blindSig, inv);
+        }
+
         const e = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.e));
         const n = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.n));
         const pk: BigPublicKey = { e, n };
 
-        // 0. If len(inv) != kLen, raise "unexpected input size" and stop
         //    rInv = bytes_to_int(inv)
-        if (inv.length != kLen) {
-            throw new Error('unexpected input size');
-        }
         const rInv = os2ip(inv);
-
-        // 1. If len(blind_sig) != kLen, raise "unexpected input size" and stop
-        if (blindSig.length != kLen) {
-            throw new Error('unexpected input size');
-        }
 
         // 2. z = bytes_to_int(blind_sig)
         const z = os2ip(blindSig);
@@ -256,28 +292,11 @@ export class PartiallyBlindRSA {
 
         // 6. pk_derived = DerivePublicKey(pk, info)
         const pk_derived = await this.derivePublicKey(pk, info);
-        const pk_derived_key = await crypto.subtle.importKey(
-            'jwk',
-            {
-                ...jwkKey,
-                e: sjcl.codec.base64url.fromBits(pk_derived.e.toBits(0)),
-                n: sjcl.codec.base64url.fromBits(pk_derived.n.toBits(0)),
-            },
-            { name: PartiallyBlindRSA.NAME, hash: this.params.hash },
-            false,
-            ['verify'],
-        );
 
         // 7. result = RSASSA-PSS-VERIFY(pk, msg, sig)
         // 8. If result = "valid signature", output sig, else
         //    raise "invalid signature" and stop
-        const algorithm = { name: PartiallyBlindRSA.NAME, saltLength: this.params.saltLength };
-        const ok = await crypto.subtle.verify(
-            algorithm,
-            pk_derived_key,
-            sig.slice().buffer,
-            msg_prime,
-        );
+        const ok = await this.verifyDerived(pk_derived, jwkKey, msg_prime, sig);
         if (!ok) {
             throw new Error('invalid signature');
         }
@@ -373,12 +392,51 @@ export class PartiallyBlindRSA {
         if (!jwkKey.e || !jwkKey.n) {
             throw new Error('key has invalid parameters');
         }
+
+        const { backend } = this.params;
+        if (backend) {
+            return backend.verify(this.context(jwkKey.n, jwkKey.e, info), message, signature);
+        }
+
         const e = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.e));
         const n = sjcl.bn.fromBits(sjcl.codec.base64url.toBits(jwkKey.n));
         const pk: BigPublicKey = { e, n };
 
         // 1. Compute pk_derived = DerivePublicKey(pk, info).
         const pk_derived = await this.derivePublicKey(pk, info);
+
+        // 2. Compute msg_prime = concat("msg", int_to_bytes(len(info), 4), info, msg).
+        const msg_prime = joinAll([
+            new TextEncoder().encode('msg'),
+            int_to_bytes(info.length, 4),
+            info,
+            message,
+        ]);
+
+        // 3. Invoke and output the result of RSASSA-PSS-VERIFY (Section 8.1.2 of [RFC8017]) with (n, e) as pk_derived, M as msg_prime, and S as sig.
+        return this.verifyDerived(pk_derived, jwkKey, msg_prime, signature);
+    }
+
+    // Verifies an RSASSA-PSS signature under the metadata-derived public key.
+    //
+    // This is the step platforms refuse: Chromium and Cloudflare Workers reject
+    // the derived exponent at importKey, Firefox returns false, and Node.js
+    // returns false above MAX_WEBCRYPTO_MODULUS_BITS for a signature it just
+    // produced itself. That last case cannot be told from a bad signature, so
+    // refuse rather than answer. Configure a backend to run the client there.
+    private async verifyDerived(
+        pk_derived: BigPublicKey,
+        jwkKey: JsonWebKey,
+        msg_prime: Uint8Array,
+        signature: Uint8Array,
+    ): Promise<boolean> {
+        const modulusLength = pk_derived.n.bitLength();
+        if (modulusLength > PartiallyBlindRSA.MAX_WEBCRYPTO_MODULUS_BITS) {
+            throw new Error(
+                `cannot verify a ${modulusLength}-bit modulus with WebCrypto: ` +
+                    `pass the backend from @cloudflare/blindrsa-ts/wasm`,
+            );
+        }
         const pk_derived_key = await crypto.subtle.importKey(
             'jwk',
             {
@@ -391,15 +449,6 @@ export class PartiallyBlindRSA {
             ['verify'],
         );
 
-        // 2. Compute msg_prime = concat("msg", int_to_bytes(len(info), 4), info, msg).
-        const msg_prime = joinAll([
-            new TextEncoder().encode('msg'),
-            int_to_bytes(info.length, 4),
-            info,
-            message,
-        ]);
-
-        // 3. Invoke and output the result of RSASSA-PSS-VERIFY (Section 8.1.2 of [RFC8017]) with (n, e) as pk_derived, M as msg_prime, and S as sig.
         return crypto.subtle.verify(
             { name: PartiallyBlindRSA.NAME, saltLength: this.params.saltLength },
             pk_derived_key,
